@@ -1,61 +1,114 @@
- # AWS TypeScript Pulumi Template
+# nodm-name
 
- A minimal Pulumi template for provisioning AWS infrastructure using TypeScript. This template creates an Amazon S3 bucket and exports its name.
+A static website hosted on AWS using Pulumi infrastructure as code. This project deploys a static HTML page to S3 with CloudFront CDN distribution.
 
- ## Prerequisites
+## Prerequisites
 
- - Pulumi CLI (>= v3): https://www.pulumi.com/docs/get-started/install/
- - Node.js (>= 14): https://nodejs.org/
- - AWS credentials configured (e.g., via `aws configure` or environment variables)
+- [Pulumi CLI](https://www.pulumi.com/docs/get-started/install/) (>= v3)
+- [Node.js](https://nodejs.org/) (>= 14)
+- AWS credentials configured (via `aws configure` or environment variables)
+- An active Pulumi account (free tier available at https://app.pulumi.com)
 
- ## Getting Started
+## Getting Started
 
- 1. Initialize a new Pulumi project:
+1. Install dependencies:
 
-    ```bash
-    pulumi new aws-typescript
-    ```
+   ```bash
+   npm install
+   ```
 
-    Follow the prompts to set your:
-    - Project name
-    - Project description
-    - AWS region (defaults to `us-east-1`)
+2. Preview the infrastructure changes:
 
- 2. Preview and deploy your infrastructure:
+   ```bash
+   npm run preview
+   ```
 
-    ```bash
-    pulumi preview
-    pulumi up
-    ```
+3. Deploy to AWS:
 
- 3. When you're finished, tear down your stack:
+   ```bash
+   npm run deploy
+   ```
 
-    ```bash
-    pulumi destroy
-    pulumi stack rm
-    ```
+   This will create:
+   - S3 bucket configured for static website hosting
+   - CloudFront distribution for global CDN
+   - Bucket policies for public access
+   - Upload your static files
 
- ## Project Layout
+4. Get the deployed URLs:
 
- - `Pulumi.yaml` — Pulumi project and template metadata
- - `index.ts` — Main Pulumi program (creates an S3 bucket)
- - `package.json` — Node.js dependencies
- - `tsconfig.json` — TypeScript compiler options
+   ```bash
+   npm run outputs
+   ```
 
- ## Configuration
+   You'll see:
+   - `websiteUrl` - Direct S3 website endpoint
+   - `cdnUrl` - CloudFront HTTPS URL (recommended)
 
- | Key           | Description                             | Default     |
- | ------------- | --------------------------------------- | ----------- |
- | `aws:region`  | The AWS region to deploy resources into | `us-east-1` |
+## Available Scripts
 
- Use `pulumi config set <key> <value>` to customize configuration.
+- `npm run preview` - Preview infrastructure changes before deploying
+- `npm run deploy` - Deploy infrastructure to AWS
+- `npm run destroy` - Tear down all AWS resources
+- `npm run outputs` - Display deployed resource URLs
+- `npm run lint` - Check code with Biome
+- `npm run lint:fix` - Fix linting issues automatically
+- `npm run format` - Format code with Biome
 
- ## Next Steps
+## Project Structure
 
- - Extend `index.ts` to provision additional resources (e.g., VPCs, Lambda functions, DynamoDB tables).
- - Explore [Pulumi AWSX](https://www.pulumi.com/docs/reference/pkg/awsx/) for higher-level AWS components.
- - Consult the [Pulumi documentation](https://www.pulumi.com/docs/) for more examples and best practices.
+```
+.
+├── index.ts              # Pulumi infrastructure definition
+├── src/
+│   └── index.html       # Static website content
+├── package.json         # Node.js dependencies and scripts
+├── tsconfig.json        # TypeScript configuration
+├── biome.json          # Biome linter/formatter config
+└── Pulumi.yaml         # Pulumi project metadata
+```
 
- ## Getting Help
+## Configuration
 
- If you encounter any issues or have suggestions, please open an issue in this repository.
+You can customize the AWS region and other settings:
+
+```bash
+pulumi config set aws:region us-west-2
+```
+
+## Updating Content
+
+To update the website content:
+
+1. Edit files in the `src/` directory
+2. Run `npm run deploy` to upload changes
+
+CloudFront caching is set to 1 hour by default. For immediate updates, you may need to invalidate the CloudFront cache.
+
+## Cleanup
+
+When you're done, remove all AWS resources:
+
+```bash
+npm run destroy
+```
+
+## Cost Considerations
+
+This infrastructure uses:
+- **S3**: Minimal cost for storage and requests
+- **CloudFront**: Free tier includes 1TB data transfer and 10M requests/month
+
+Estimated cost: ~$0.50-$2/month for low traffic sites (after free tier).
+
+## Next Steps
+
+- Add custom domain with Route53
+- Add SSL certificate with ACM
+- Implement CloudFront cache invalidation on deploy
+- Add CI/CD with GitHub Actions
+- Expand to a full static site generator (Astro, Next.js, etc.)
+
+## License
+
+MIT

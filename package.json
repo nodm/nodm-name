@@ -1,6 +1,17 @@
 {
     "name": "nodm-name",
+    "version": "1.0.0",
+    "description": "Static website hosted on AWS with Pulumi",
     "main": "index.ts",
+    "scripts": {
+        "preview": "pulumi preview",
+        "deploy": "pulumi up",
+        "destroy": "pulumi destroy",
+        "outputs": "pulumi stack output",
+        "lint": "biome check .",
+        "lint:fix": "biome check --write .",
+        "format": "biome format --write ."
+    },
     "devDependencies": {
         "@biomejs/biome": "2.2.6",
         "@types/node": "^22",
