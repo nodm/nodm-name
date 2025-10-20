@@ -1,18 +1,13 @@
 {
-  "name": "nodm-name",
-  "version": "1.0.0",
-  "description": "Website nodm.name",
-  "main": "index.js",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/nodm/nodm-name.git"
-  },
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "nodm",
-  "license": "ISC",
-  "devDependencies": {
-    "@biomejs/biome": "2.2.6"
-  }
+    "name": "nodm-name",
+    "main": "index.ts",
+    "devDependencies": {
+        "@types/node": "^22",
+        "typescript": "^5.0.0"
+    },
+    "dependencies": {
+        "@pulumi/aws": "^7.0.0",
+        "@pulumi/awsx": "^3.0.0",
+        "@pulumi/pulumi": "^3.113.0"
+    }
 }
