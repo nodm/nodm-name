@@ -88,12 +88,12 @@ const cloudfrontDistribution = new aws.cloudfront.Distribution("cdn", {
     defaultRootObject: "index.html",
     aliases: allDomains,
     origins: [{
-        originId: bucket.arn,
+        originId: "s3-website-origin",
         domainName: bucket.bucketRegionalDomainName,
         originAccessControlId: oac.id,
     }],
     defaultCacheBehavior: {
-        targetOriginId: bucket.arn,
+        targetOriginId: "s3-website-origin",
         viewerProtocolPolicy: "redirect-to-https",
         allowedMethods: ["GET", "HEAD", "OPTIONS"],
         cachedMethods: ["GET", "HEAD", "OPTIONS"],
