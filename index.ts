@@ -94,7 +94,7 @@ const cloudfrontDistribution = new aws.cloudfront.Distribution("cdn", {
     }],
     defaultCacheBehavior: {
         targetOriginId: bucket.arn,
-        viewerProtocolPolicy: "https-only",
+        viewerProtocolPolicy: "redirect-to-https",
         allowedMethods: ["GET", "HEAD", "OPTIONS"],
         cachedMethods: ["GET", "HEAD", "OPTIONS"],
         forwardedValues: {
