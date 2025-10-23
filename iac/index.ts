@@ -67,8 +67,8 @@ const certificate = new aws.acm.Certificate("ssl-cert", {
 }, { provider: usEast1Provider });
 
 // Create DNS validation records
-const certificateValidationRecords = allDomains.map((_domain, index) => {
-    return certificate.domainValidationOptions[index].apply(option => {
+const certificateValidationRecords = certificate.domainValidationOptions.apply(options => 
+    options.map((option, index) => {
         return new aws.route53.Record(`cert-validation-${index}`, {
             name: option.resourceRecordName,
             type: option.resourceRecordType,
@@ -76,13 +76,13 @@ const certificateValidationRecords = allDomains.map((_domain, index) => {
             records: [option.resourceRecordValue],
             ttl: 60,
         });
-    });
-});
+    })
+);
 
 // Wait for certificate validation
 const certificateValidation = new aws.acm.CertificateValidation("cert-validation", {
     certificateArn: certificate.arn,
-    validationRecordFqdns: certificateValidationRecords.map(rec => rec.fqdn),
+    validationRecordFqdns: certificateValidationRecords.apply(records => records.map(rec => rec.fqdn)),
 }, { provider: usEast1Provider });
 
 // Create CloudFront distribution for CDN (HTTPS-only)
