@@ -196,13 +196,7 @@ Create an IAM policy with the following JSON:
       "Resource": [
         "arn:aws:s3:::nodm-name",
         "arn:aws:s3:::nodm-name-pulumi-state"
-      ],
-      "Condition": {
-        "StringEquals": {
-          "aws:RequestTag/Project": "nodm-name",
-          "aws:RequestTag/ManagedBy": "Pulumi"
-        }
-      }
+      ]
     },
     {
       "Sid": "S3ObjectReadPermissions",
@@ -236,13 +230,7 @@ Create an IAM policy with the following JSON:
       ],
       "Resource": [
         "arn:aws:s3:::nodm-name/*"
-      ],
-      "Condition": {
-        "StringEquals": {
-          "aws:RequestTag/Project": "nodm-name",
-          "aws:RequestTag/ManagedBy": "Pulumi"
-        }
-      }
+      ]
     },
     {
       "Sid": "CloudFrontPermissions",
@@ -258,13 +246,7 @@ Create an IAM policy with the following JSON:
         "cloudfront:UpdateOriginAccessControl",
         "cloudfront:DeleteOriginAccessControl"
       ],
-      "Resource": "*",
-      "Condition": {
-        "StringEquals": {
-          "aws:RequestTag/Project": "nodm-name",
-          "aws:RequestTag/ManagedBy": "Pulumi"
-        }
-      }
+      "Resource": "*"
     },
     {
       "Sid": "ACMPermissions",
@@ -276,13 +258,7 @@ Create an IAM policy with the following JSON:
         "acm:AddTagsToCertificate",
         "acm:ListTagsForCertificate"
       ],
-      "Resource": "*",
-      "Condition": {
-        "StringEquals": {
-          "aws:RequestTag/Project": "nodm-name",
-          "aws:RequestTag/ManagedBy": "Pulumi"
-        }
-      }
+      "Resource": "*"
     },
     {
       "Sid": "Route53Permissions",
@@ -293,7 +269,8 @@ Create an IAM policy with the following JSON:
         "route53:ListHostedZonesByName",
         "route53:ChangeResourceRecordSets",
         "route53:GetChange",
-        "route53:ListResourceRecordSets"
+        "route53:ListResourceRecordSets",
+        "route53:ListTagsForResource"
       ],
       "Resource": "*"
     }
