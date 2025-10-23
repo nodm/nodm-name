@@ -54,7 +54,8 @@ jobs:
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
 
       - name: Deploy with Pulumi
-        run: pulumi up --yes --skip-preview
+        run: pulumi up --yes --skip-preview --verbose
         working-directory: ./iac
         env:
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+        continue-on-error: false
