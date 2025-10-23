@@ -271,32 +271,103 @@ Create an IAM policy with the following JSON:
 }
 ```
 
-### Setting Up AWS Credentials
+### Setting Up AWS Credentials for Local Development
 
-1. **Create IAM User or Role**
-   - Go to AWS IAM Console
-   - Create a new IAM user for deployment
-   - Attach the policy above to the user
+For local development, you can use the AWS CLI:
 
-2. **Generate Access Keys**
-   - Create access keys for the IAM user
-   - Save the Access Key ID and Secret Access Key
+```bash
+aws configure
+# Enter your AWS Access Key ID
+# Enter your AWS Secret Access Key
+# Set default region (e.g., us-east-1)
+# Set default output format: json
+```
 
-3. **Configure AWS CLI**
-   ```bash
-   aws configure
-   # Enter your AWS Access Key ID
-   # Enter your AWS Secret Access Key
-   # Set default region: us-east-1
-   # Set default output format: json
+Or use environment variables:
+
+```bash
+export AWS_ACCESS_KEY_ID="your-access-key-id"
+export AWS_SECRET_ACCESS_KEY="your-secret-access-key"
+export AWS_REGION="us-east-1"
+```
+
+### Setting Up GitHub Actions with OIDC (Recommended)
+
+This project uses **OpenID Connect (OIDC)** to authenticate GitHub Actions with AWS. This is more secure than storing long-lived AWS credentials as it uses temporary credentials for each workflow run.
+
+#### Step 1: Create OIDC Identity Provider in AWS
+
+1. Open the AWS IAM Console
+2. Navigate to **Identity providers** → **Add provider**
+3. Configure the provider:
+   - **Provider type**: OpenID Connect
+   - **Provider URL**: `https://token.actions.githubusercontent.com`
+   - **Audience**: `sts.amazonaws.com`
+4. Click **Add provider**
+
+#### Step 2: Create IAM Role for GitHub Actions
+
+1. In the IAM Console, go to **Roles** → **Create role**
+2. Select **Web identity** as the trusted entity type
+3. Configure the trust relationship:
+   - **Identity provider**: `token.actions.githubusercontent.com`
+   - **Audience**: `sts.amazonaws.com`
+   - Click **Next**
+
+4. Attach the deployment policy (the JSON policy shown above in the "IAM Policy Example" section)
+
+5. Name the role (e.g., `GitHubActionsDeployRole`)
+
+6. After creating the role, edit the trust relationship to restrict access to your specific repository:
+
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [
+       {
+         "Effect": "Allow",
+         "Principal": {
+           "Federated": "arn:aws:iam::YOUR_ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"
+         },
+         "Action": "sts:AssumeRoleWithWebIdentity",
+         "Condition": {
+           "StringEquals": {
+             "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+           },
+           "StringLike": {
+             "token.actions.githubusercontent.com:sub": "repo:YOUR_GITHUB_USERNAME/nodm-name:ref:refs/heads/main"
+           }
+         }
+       }
+     ]
+   }
    ```
 
-4. **Alternative: Environment Variables**
-   ```bash
-   export AWS_ACCESS_KEY_ID="your-access-key-id"
-   export AWS_SECRET_ACCESS_KEY="your-secret-access-key"
-   export AWS_REGION="us-east-1"
-   ```
+   Replace:
+   - `YOUR_ACCOUNT_ID` with your AWS account ID
+   - `YOUR_GITHUB_USERNAME` with your GitHub username or organization name
+
+7. Copy the **Role ARN** (you'll need this for GitHub Secrets)
+
+#### Step 3: Configure GitHub Secrets
+
+1. Go to your GitHub repository
+2. Navigate to **Settings** → **Secrets and variables** → **Actions**
+3. Add the following secrets:
+
+   **Required Secrets:**
+   - `AWS_ROLE_ARN`: The ARN of the IAM role you created (e.g., `arn:aws:iam::123456789012:role/GitHubActionsDeployRole`)
+   - `AWS_REGION`: Your preferred AWS region (e.g., `us-east-1`)
+
+   **Note**: You do NOT need to store `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY` when using OIDC
+
+#### Benefits of OIDC Authentication
+
+- **No long-lived credentials**: No access keys to manage or rotate
+- **Temporary credentials**: Each workflow run gets fresh, short-lived credentials
+- **Better security**: Credentials can't be leaked or stolen from GitHub Secrets
+- **Fine-grained access**: Can restrict access by repository, branch, or even specific workflows
+- **Audit trail**: AWS CloudTrail shows which GitHub Actions assumed the role
 
 ### Tag Enforcement
 
@@ -382,19 +453,19 @@ pulumi destroy
 
 The project includes GitHub Actions workflow for automatic deployment on every push to the `main` branch.
 
-#### Setup GitHub Secrets
+#### Prerequisites
 
-Before the CI/CD pipeline can work, you need to configure the following secrets in your GitHub repository:
+Before the CI/CD pipeline can work, you need to:
 
-1. Go to your GitHub repository
-2. Navigate to Settings → Secrets and variables → Actions
-3. Add the following secrets:
+1. **Set up OIDC authentication** (see "Setting Up GitHub Actions with OIDC" section above)
+2. **Configure GitHub Secrets** in your repository (Settings → Secrets and variables → Actions):
+   - `AWS_ROLE_ARN`: The ARN of the IAM role for GitHub Actions
+   - `AWS_REGION`: Your deployment region (e.g., `us-east-1`)
 
-**Required Secrets:**
-- `AWS_ACCESS_KEY_ID`: Your AWS access key ID
-- `AWS_SECRET_ACCESS_KEY`: Your AWS secret access key
-
-**Note:** This project uses self-managed state storage in S3 (`nodm-name-pulumi-state` bucket), so you don't need a Pulumi Cloud account or access token.
+**Note:** This project uses:
+- **OIDC authentication** (no long-lived AWS credentials needed)
+- **Self-managed state storage** in S3 (`nodm-name-pulumi-state` bucket)
+- No Pulumi Cloud account or access token required
 
 #### How It Works
 
@@ -402,12 +473,14 @@ Before the CI/CD pipeline can work, you need to configure the following secrets 
 2. GitHub Actions workflow triggers automatically
 3. Workflow checks out code and sets up Node.js
 4. Installs npm dependencies
-5. Configures AWS credentials from secrets
-6. Installs Pulumi CLI
-7. Logs into S3 backend (`s3://nodm-name-pulumi-state`)
-8. Selects or creates the `prod` stack
-9. Runs `pulumi up` to deploy changes
-10. Infrastructure is updated automatically
+5. Authenticates with AWS using OIDC (assumes the IAM role)
+6. Receives temporary AWS credentials valid for the workflow duration
+7. Installs Pulumi CLI
+8. Logs into S3 backend (`s3://nodm-name-pulumi-state`)
+9. Selects or creates the `prod` stack
+10. Runs `pulumi up` to deploy changes
+11. Infrastructure is updated automatically
+12. Temporary credentials expire after workflow completes
 
 #### Workflow File Location
 
@@ -464,12 +537,16 @@ To add more subdomains:
 
 ## Security Best Practices
 
-1. S3 bucket is private (no public access)
-2. Access only through CloudFront with OAC
-3. HTTPS enforced (HTTP redirects)
-4. TLS 1.2+ required
-5. No sensitive data in repository
-6. Infrastructure as code (version controlled)
+1. **S3 bucket is private** (no public access)
+2. **Access only through CloudFront** with Origin Access Control (OAC)
+3. **HTTPS enforced** (HTTP redirects to HTTPS)
+4. **TLS 1.2+ required** for all connections
+5. **OIDC authentication** for GitHub Actions (no long-lived credentials)
+6. **Temporary credentials** that expire after each deployment
+7. **Repository-specific IAM role** with least-privilege permissions
+8. **No sensitive data in repository** (credentials managed via GitHub Secrets)
+9. **Infrastructure as code** (version controlled and auditable)
+10. **Resource tagging** enforced via IAM conditions
 
 ## Troubleshooting
 
@@ -492,17 +569,21 @@ To add more subdomains:
 
 ### Current Implementation
 - Automatic deployment on push to `main` branch
-- GitHub Actions workflow
-- Secure credential management via GitHub Secrets
+- GitHub Actions workflow with OIDC authentication
+- Temporary AWS credentials (no long-lived secrets)
 - Node.js environment setup
 - Pulumi integration for infrastructure as code
+- Self-managed state storage in S3
 
 ### Security Best Practices
+- **OIDC authentication** eliminates need for long-lived AWS credentials
+- **Temporary credentials** issued per workflow run and auto-expire
+- **Repository-scoped access** via IAM trust policy
+- **Branch-specific permissions** (restricted to `main` branch)
 - Never commit AWS credentials to the repository
-- Use GitHub Secrets for sensitive data
-- Rotate access keys regularly
+- Use GitHub Secrets only for role ARN and region (non-sensitive)
 - Use least-privilege IAM policies
-- Monitor workflow logs for suspicious activity
+- Monitor workflow logs and AWS CloudTrail for audit trail
 
 ## Future Enhancements
 
