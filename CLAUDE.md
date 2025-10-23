@@ -135,6 +135,7 @@ To deploy this infrastructure, you need the following AWS permissions:
 - `cloudfront:UpdateDistribution`
 - `cloudfront:DeleteDistribution`
 - `cloudfront:TagResource`
+- `cloudfront:ListTagsForResource`
 - `cloudfront:CreateOriginAccessControl`
 - `cloudfront:GetOriginAccessControl`
 - `cloudfront:UpdateOriginAccessControl`
@@ -252,6 +253,7 @@ Create an IAM policy with the following JSON:
         "cloudfront:UpdateDistribution",
         "cloudfront:DeleteDistribution",
         "cloudfront:TagResource",
+        "cloudfront:ListTagsForResource",
         "cloudfront:CreateOriginAccessControl",
         "cloudfront:GetOriginAccessControl",
         "cloudfront:UpdateOriginAccessControl",
