@@ -12,30 +12,8 @@ const commonTags = {
     ManagedBy: "Pulumi",
 };
 
-// Create S3 bucket for Pulumi state storage
-const pulumiStateBucket = new aws.s3.Bucket("pulumi-state-bucket", {
-    bucket: "nodm-name-pulumi-state",
-    tags: commonTags,
-    versioning: {
-        enabled: true, // Enable versioning for state history
-    },
-    serverSideEncryptionConfiguration: {
-        rule: {
-            applyServerSideEncryptionByDefault: {
-                sseAlgorithm: "AES256",
-            },
-        },
-    },
-});
-
-// Block public access to Pulumi state bucket
-new aws.s3.BucketPublicAccessBlock("pulumi-state-public-access-block", {
-    bucket: pulumiStateBucket.id,
-    blockPublicAcls: true,
-    blockPublicPolicy: true,
-    ignorePublicAcls: true,
-    restrictPublicBuckets: true,
-});
+// Note: The Pulumi state bucket (nodm-name-pulumi-state) is managed separately
+// and should not be part of the infrastructure code to avoid circular dependencies
 
 // Create an S3 bucket (private, HTTPS-only access via CloudFront)
 const bucket = new aws.s3.Bucket("website-bucket", {
