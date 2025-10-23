@@ -67,14 +67,11 @@ const certificate = new aws.acm.Certificate("ssl-cert", {
 }, { provider: usEast1Provider });
 
 // Create DNS validation record
-// Extract validation details using apply and pulumi.output
-const validationOption = pulumi.output(certificate.domainValidationOptions).apply(opts => opts[0]);
-
 const certificateValidationRecord = new aws.route53.Record("cert-validation", {
-    name: validationOption.resourceRecordName,
-    type: validationOption.resourceRecordType,
+    name: certificate.domainValidationOptions[0].resourceRecordName,
+    type: certificate.domainValidationOptions[0].resourceRecordType,
     zoneId: hostedZone.then(zone => zone.zoneId),
-    records: [validationOption.resourceRecordValue],
+    records: [certificate.domainValidationOptions[0].resourceRecordValue],
     ttl: 60,
 });
 

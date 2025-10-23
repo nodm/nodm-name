@@ -236,7 +236,8 @@ Create an IAM policy with the following JSON:
       "Action": [
         "s3:PutObject",
         "s3:DeleteObject",
-        "s3:PutObjectTagging"
+        "s3:PutObjectTagging",
+        "s3:GetObjectTagging"
       ],
       "Resource": [
         "arn:aws:s3:::nodm-name/*"
