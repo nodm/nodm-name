@@ -44,6 +44,7 @@ new aws.s3.BucketObject("index.html", {
     bucket: bucket.id,
     source: new pulumi.asset.FileAsset(path.join(__dirname, "..", "src", "index.html")),
     contentType: "text/html",
+    cacheControl: "public, max-age=600",
     tags: commonTags,
 });
 
@@ -106,7 +107,7 @@ const cloudfrontDistribution = new aws.cloudfront.Distribution("cdn", {
         targetOriginId: "s3-website-origin",
         viewerProtocolPolicy: "redirect-to-https",
         allowedMethods: ["GET", "HEAD", "OPTIONS"],
-        cachedMethods: ["GET", "HEAD", "OPTIONS"],
+        cachedMethods: ["GET", "HEAD"],
         forwardedValues: {
             queryString: false,
             cookies: {
