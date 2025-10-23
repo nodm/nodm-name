@@ -82,6 +82,7 @@ const certValidationRecords = certificate.domainValidationOptions.apply(options 
             zoneId: hostedZone.then(zone => zone.zoneId),
             records: [option.resourceRecordValue],
             ttl: 60,
+            allowOverwrite: true,  // Allow overwriting existing records
         });
     });
 });
