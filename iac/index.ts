@@ -66,20 +66,30 @@ const certificate = new aws.acm.Certificate("ssl-cert", {
     tags: commonTags,
 }, { provider: usEast1Provider });
 
-// Create DNS validation record (AWS deduplicates validation for wildcard/multi-domain certs)
-// We only need to create records for unique validation options
-const certValidationRecord = new aws.route53.Record("cert-validation", {
-    name: certificate.domainValidationOptions[0].resourceRecordName,
-    type: certificate.domainValidationOptions[0].resourceRecordType,
-    zoneId: hostedZone.then(zone => zone.zoneId),
-    records: [certificate.domainValidationOptions[0].resourceRecordValue],
-    ttl: 60,
+// Create DNS validation records for all domains in the certificate
+// ACM may require separate validation records for each domain/subdomain
+const certValidationRecords = certificate.domainValidationOptions.apply(options => {
+    // Get unique validation records (AWS may provide duplicates)
+    const uniqueRecords = new Map<string, typeof options[0]>();
+    options.forEach(option => {
+        uniqueRecords.set(option.resourceRecordName, option);
+    });
+
+    return Array.from(uniqueRecords.values()).map((option, index) => {
+        return new aws.route53.Record(`cert-validation-${index}`, {
+            name: option.resourceRecordName,
+            type: option.resourceRecordType,
+            zoneId: hostedZone.then(zone => zone.zoneId),
+            records: [option.resourceRecordValue],
+            ttl: 60,
+        });
+    });
 });
 
 // Wait for certificate validation
 const certificateValidation = new aws.acm.CertificateValidation("cert-validation", {
     certificateArn: certificate.arn,
-    validationRecordFqdns: [certValidationRecord.fqdn],
+    validationRecordFqdns: certValidationRecords.apply(records => records.map(r => r.fqdn)),
 }, { provider: usEast1Provider });
 
 // Create CloudFront distribution for CDN (HTTPS-only)
