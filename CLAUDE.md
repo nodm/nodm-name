@@ -174,7 +174,8 @@ Create an IAM policy with the following JSON:
         "s3:GetBucketVersioning",
         "s3:GetEncryptionConfiguration",
         "s3:ListBucketVersions",
-        "s3:GetBucketAcl"
+        "s3:GetBucketAcl",
+        "s3:GetBucketCORS"
       ],
       "Resource": [
         "arn:aws:s3:::nodm-name",
