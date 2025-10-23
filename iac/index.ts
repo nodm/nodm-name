@@ -69,25 +69,32 @@ const certificate = new aws.acm.Certificate("ssl-cert", {
 // Create DNS validation records
 // ACM provides domain validation options as an output array
 // We need to create Route53 records for DNS validation
-const validationRecords: aws.route53.Record[] = [];
-for (let i = 0; i < allDomains.length; i++) {
-    const certValidation = certificate.domainValidationOptions.apply(options => options[i]);
+// Using a Map to deduplicate validation records (ACM may return duplicates for SANs)
+const validationRecordMap = new Map<string, aws.route53.Record>();
 
-    const record = new aws.route53.Record(`cert-validation-${i}`, {
-        name: certValidation.apply(v => v.resourceRecordName),
-        type: certValidation.apply(v => v.resourceRecordType),
-        zoneId: hostedZone.then(zone => zone.zoneId),
-        records: certValidation.apply(v => [v.resourceRecordValue]),
-        ttl: 60,
+certificate.domainValidationOptions.apply(options => {
+    options.forEach((option, i) => {
+        // Use resourceRecordName as key to avoid duplicate records
+        const key = option.resourceRecordName;
+        if (!validationRecordMap.has(key)) {
+            const record = new aws.route53.Record(`cert-validation-${i}`, {
+                name: option.resourceRecordName,
+                type: option.resourceRecordType,
+                zoneId: hostedZone.then(zone => zone.zoneId),
+                records: [option.resourceRecordValue],
+                ttl: 60,
+            });
+            validationRecordMap.set(key, record);
+        }
     });
-
-    validationRecords.push(record);
-}
+});
 
 // Wait for certificate validation
 const certificateValidation = new aws.acm.CertificateValidation("cert-validation", {
     certificateArn: certificate.arn,
-    validationRecordFqdns: validationRecords.map(record => record.fqdn),
+    validationRecordFqdns: certificate.domainValidationOptions.apply(options =>
+        options.map(option => option.resourceRecordName)
+    ),
 }, { provider: usEast1Provider });
 
 // Create CloudFront distribution for CDN (HTTPS-only)
