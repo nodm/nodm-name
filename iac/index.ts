@@ -42,7 +42,7 @@ const oac = new aws.cloudfront.OriginAccessControl("oac", {
 // Upload the index.html file
 new aws.s3.BucketObject("index.html", {
     bucket: bucket.id,
-    source: new pulumi.asset.FileAsset(path.join(__dirname, "src", "index.html")),
+    source: new pulumi.asset.FileAsset(path.join(__dirname, "..", "src", "index.html")),
     contentType: "text/html",
     tags: commonTags,
 });
@@ -67,12 +67,14 @@ const certificate = new aws.acm.Certificate("ssl-cert", {
 }, { provider: usEast1Provider });
 
 // Create DNS validation record
-// We only need one validation record - ACM uses the same CNAME for all domains/SANs
+// Extract validation details using apply and pulumi.output
+const validationOption = pulumi.output(certificate.domainValidationOptions).apply(opts => opts[0]);
+
 const certificateValidationRecord = new aws.route53.Record("cert-validation", {
-    name: certificate.domainValidationOptions[0].resourceRecordName,
-    type: certificate.domainValidationOptions[0].resourceRecordType,
+    name: validationOption.resourceRecordName,
+    type: validationOption.resourceRecordType,
     zoneId: hostedZone.then(zone => zone.zoneId),
-    records: [certificate.domainValidationOptions[0].resourceRecordValue],
+    records: [validationOption.resourceRecordValue],
     ttl: 60,
 });
 
