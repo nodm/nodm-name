@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'src/**'           # Website content
+      - 'iac/**'           # Infrastructure code
+      - 'package.json'     # Dependencies
+      - 'package-lock.json'
+      - '.github/workflows/deploy.yml'  # Workflow itself
 
 jobs:
   deploy:
