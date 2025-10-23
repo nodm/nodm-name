@@ -47,20 +47,8 @@ jobs:
         env:
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
 
-      - name: Clear any stale locks
-        run: pulumi cancel --yes || true
-        working-directory: ./iac
-        env:
-          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
-
-      - name: Sync state and clear pending operations
-        run: pulumi refresh --yes
-        working-directory: ./iac
-        env:
-          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
-
       - name: Deploy with Pulumi
-        run: pulumi up --yes --skip-preview
+        run: pulumi up --yes
         working-directory: ./iac
         env:
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
