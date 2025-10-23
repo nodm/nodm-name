@@ -67,34 +67,30 @@ const certificate = new aws.acm.Certificate("ssl-cert", {
 }, { provider: usEast1Provider });
 
 // Create DNS validation records
-// ACM provides domain validation options as an output array
-// We need to create Route53 records for DNS validation
-// Using a Map to deduplicate validation records (ACM may return duplicates for SANs)
-const validationRecordMap = new Map<string, aws.route53.Record>();
+// ACM certificate validation requires creating DNS records in Route53
+// We create one record per domain validation option
+const certValidationRecords: aws.route53.Record[] = [];
 
-certificate.domainValidationOptions.apply(options => {
-    options.forEach((option, i) => {
-        // Use resourceRecordName as key to avoid duplicate records
-        const key = option.resourceRecordName;
-        if (!validationRecordMap.has(key)) {
-            const record = new aws.route53.Record(`cert-validation-${i}`, {
-                name: option.resourceRecordName,
-                type: option.resourceRecordType,
-                zoneId: hostedZone.then(zone => zone.zoneId),
-                records: [option.resourceRecordValue],
-                ttl: 60,
-            });
-            validationRecordMap.set(key, record);
-        }
+// Create validation records for each domain (apex + SANs)
+allDomains.forEach((_domain, index) => {
+    const validationOption = certificate.domainValidationOptions[index];
+    
+    const record = new aws.route53.Record(`cert-validation-${index}`, {
+        name: validationOption.resourceRecordName,
+        type: validationOption.resourceRecordType,
+        zoneId: hostedZone.then(zone => zone.zoneId),
+        records: [validationOption.resourceRecordValue],
+        ttl: 60,
+        allowOverwrite: true, // Allow overwriting existing records (for redeployments)
     });
+    
+    certValidationRecords.push(record);
 });
 
 // Wait for certificate validation
 const certificateValidation = new aws.acm.CertificateValidation("cert-validation", {
     certificateArn: certificate.arn,
-    validationRecordFqdns: certificate.domainValidationOptions.apply(options =>
-        options.map(option => option.resourceRecordName)
-    ),
+    validationRecordFqdns: certValidationRecords.map(record => record.fqdn),
 }, { provider: usEast1Provider });
 
 // Create CloudFront distribution for CDN (HTTPS-only)
