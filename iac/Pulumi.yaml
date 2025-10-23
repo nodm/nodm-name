@@ -1,9 +1,11 @@
 name: nodm-name
-description: A minimal AWS TypeScript Pulumi program
+description: Static website hosted on AWS with Pulumi
 runtime:
   name: nodejs
   options:
     packagemanager: npm
+    typescript: true
+main: index.ts
 config:
   pulumi:tags:
     value:
