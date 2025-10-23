@@ -53,7 +53,8 @@ This project deploys a static "Under Construction" website for the domain `nodm.
 ├── .github/
 │   └── workflows/
 │       └── deploy.yml   # GitHub Actions CI/CD workflow
-├── index.ts              # Pulumi infrastructure configuration
+├── iac/
+│   └── index.ts         # Pulumi infrastructure configuration
 ├── src/
 │   └── index.html       # Under construction page
 ├── package.json         # Node.js dependencies
@@ -63,7 +64,7 @@ This project deploys a static "Under Construction" website for the domain `nodm.
 
 ## Key Files
 
-### index.ts
+### iac/index.ts
 Main Pulumi infrastructure file that defines:
 - S3 bucket and access policies
 - CloudFront distribution configuration
@@ -309,7 +310,7 @@ The IAM policy includes conditions that enforce required tags on all resources:
   - Improves cost tracking and resource management
   - Enforces organizational governance policies
 
-**Note**: Pulumi automatically applies these tags to all resources defined in `index.ts` (see commonTags), so the conditions will be satisfied automatically. The conditions provide an additional security layer to prevent manual resource creation without proper tags.
+**Note**: Pulumi automatically applies these tags to all resources defined in `iac/index.ts` (see commonTags), so the conditions will be satisfied automatically. The conditions provide an additional security layer to prevent manual resource creation without proper tags.
 
 ### Important Notes
 
@@ -355,8 +356,11 @@ Alternatively, manually create the `nodm-name-pulumi-state` bucket before your f
 
 ### Manual Deploy Commands
 ```bash
-# Install dependencies
+# Install dependencies (from root directory)
 npm install
+
+# Navigate to infrastructure directory
+cd iac
 
 # Login to S3 backend (first time only)
 pulumi login s3://nodm-name-pulumi-state
@@ -441,13 +445,13 @@ After deployment, Pulumi exports:
 
 ### Adding New Pages
 1. Add HTML files to `src/` directory
-2. Create new `BucketObject` resources in `index.ts`
+2. Create new `BucketObject` resources in `iac/index.ts`
 3. Update CloudFront configuration if needed
-4. Deploy with `pulumi up`
+4. Deploy with `pulumi up` (from the `iac/` directory)
 
 ### Subdomain Management
 To add more subdomains:
-1. Add subdomain names to the `subdomains` array in `index.ts`
+1. Add subdomain names to the `subdomains` array in `iac/index.ts`
 2. Run `pulumi up` to create DNS records and update certificate
 
 ## Cost Considerations

@@ -35,9 +35,12 @@ jobs:
 
       - name: Login to S3 backend
         run: pulumi login s3://nodm-name-pulumi-state
+        working-directory: ./iac
 
       - name: Select or create stack
         run: pulumi stack select prod --create
+        working-directory: ./iac
 
       - name: Deploy with Pulumi
         run: pulumi up --yes --skip-preview
+        working-directory: ./iac
