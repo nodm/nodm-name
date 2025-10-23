@@ -38,11 +38,17 @@ jobs:
       - name: Login to S3 backend
         run: pulumi login s3://nodm-name-pulumi-state
         working-directory: ./iac
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
 
       - name: Select or create stack
         run: pulumi stack select prod --create
         working-directory: ./iac
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
 
       - name: Deploy with Pulumi
         run: pulumi up --yes --skip-preview
         working-directory: ./iac
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}

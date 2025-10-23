@@ -164,24 +164,34 @@ Create an IAM policy with the following JSON:
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "S3BucketPermissions",
+      "Sid": "S3BucketReadPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetBucketPolicy",
+        "s3:GetBucketPublicAccessBlock",
+        "s3:GetBucketTagging",
+        "s3:GetBucketVersioning",
+        "s3:GetEncryptionConfiguration",
+        "s3:ListBucketVersions"
+      ],
+      "Resource": [
+        "arn:aws:s3:::nodm-name",
+        "arn:aws:s3:::nodm-name-pulumi-state"
+      ]
+    },
+    {
+      "Sid": "S3BucketWritePermissions",
       "Effect": "Allow",
       "Action": [
         "s3:CreateBucket",
         "s3:DeleteBucket",
-        "s3:ListBucket",
-        "s3:GetBucketPolicy",
         "s3:PutBucketPolicy",
         "s3:DeleteBucketPolicy",
-        "s3:GetBucketPublicAccessBlock",
         "s3:PutBucketPublicAccessBlock",
-        "s3:GetBucketTagging",
         "s3:PutBucketTagging",
-        "s3:GetBucketVersioning",
         "s3:PutBucketVersioning",
-        "s3:GetEncryptionConfiguration",
-        "s3:PutEncryptionConfiguration",
-        "s3:ListBucketVersions"
+        "s3:PutEncryptionConfiguration"
       ],
       "Resource": [
         "arn:aws:s3:::nodm-name",
@@ -195,17 +205,37 @@ Create an IAM policy with the following JSON:
       }
     },
     {
-      "Sid": "S3ObjectPermissions",
+      "Sid": "S3ObjectReadPermissions",
       "Effect": "Allow",
       "Action": [
-        "s3:PutObject",
-        "s3:GetObject",
-        "s3:DeleteObject",
-        "s3:PutObjectTagging"
+        "s3:GetObject"
       ],
       "Resource": [
         "arn:aws:s3:::nodm-name/*",
         "arn:aws:s3:::nodm-name-pulumi-state/*"
+      ]
+    },
+    {
+      "Sid": "S3PulumiStateObjectPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::nodm-name-pulumi-state/*"
+      ]
+    },
+    {
+      "Sid": "S3WebsiteObjectWritePermissions",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:PutObjectTagging"
+      ],
+      "Resource": [
+        "arn:aws:s3:::nodm-name/*"
       ],
       "Condition": {
         "StringEquals": {
@@ -358,8 +388,13 @@ This project uses **OpenID Connect (OIDC)** to authenticate GitHub Actions with 
    **Required Secrets:**
    - `AWS_ROLE_ARN`: The ARN of the IAM role you created (e.g., `arn:aws:iam::123456789012:role/GitHubActionsDeployRole`)
    - `AWS_REGION`: Your preferred AWS region (e.g., `us-east-1`)
+   - `PULUMI_CONFIG_PASSPHRASE`: A secure passphrase for encrypting Pulumi secrets (create a strong random password)
 
-   **Note**: You do NOT need to store `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY` when using OIDC
+   **Notes**:
+   - You do NOT need to store `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY` when using OIDC
+   - The `PULUMI_CONFIG_PASSPHRASE` is required for Pulumi to encrypt sensitive configuration values in your stack
+   - Choose a strong passphrase and store it securely - you'll need it for local development too
+   - If you lose this passphrase, you won't be able to decrypt secrets in your Pulumi stack
 
 #### Benefits of OIDC Authentication
 
@@ -461,10 +496,12 @@ Before the CI/CD pipeline can work, you need to:
 2. **Configure GitHub Secrets** in your repository (Settings → Secrets and variables → Actions):
    - `AWS_ROLE_ARN`: The ARN of the IAM role for GitHub Actions
    - `AWS_REGION`: Your deployment region (e.g., `us-east-1`)
+   - `PULUMI_CONFIG_PASSPHRASE`: Passphrase for encrypting Pulumi secrets
 
 **Note:** This project uses:
 - **OIDC authentication** (no long-lived AWS credentials needed)
 - **Self-managed state storage** in S3 (`nodm-name-pulumi-state` bucket)
+- **Passphrase-based encryption** for Pulumi secrets (instead of Pulumi Cloud key management)
 - No Pulumi Cloud account or access token required
 
 #### How It Works
