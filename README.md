@@ -1,5 +1,7 @@
 # nodm-name
 
+[![Deploy to AWS](https://github.com/nodm/nodm-name/actions/workflows/deploy.yml/badge.svg?branch=main)](https://github.com/nodm/nodm-name/actions/workflows/deploy.yml)
+
 A static website hosted on AWS using Pulumi infrastructure as code. This project deploys a static HTML page to S3 with CloudFront CDN distribution.
 
 ## Prerequisites
