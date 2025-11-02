@@ -42,7 +42,7 @@ const oac = new aws.cloudfront.OriginAccessControl("oac", {
 // Upload the index.html file
 new aws.s3.BucketObject("index.html", {
     bucket: bucket.id,
-    source: new pulumi.asset.FileAsset(path.join(__dirname, "..", "src", "index.html")),
+    source: new pulumi.asset.FileAsset(path.join(__dirname, "..", "..", "src", "index.html")),
     contentType: "text/html",
     cacheControl: "public, max-age=600",
     tags: commonTags,

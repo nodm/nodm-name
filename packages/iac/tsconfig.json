@@ -13,6 +13,6 @@
         "forceConsistentCasingInFileNames": true
     },
     "files": [
-        "iac/index.ts"
+        "index.ts"
     ]
 }
