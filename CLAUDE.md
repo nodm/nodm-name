@@ -4,6 +4,12 @@
 
 This project deploys a static "Under Construction" website for the domain `nodm.name` using AWS infrastructure managed by Pulumi.
 
+The repository is structured as an npm workspace monorepo to support future additions:
+- **packages/iac/** - Infrastructure as code with Pulumi (CommonJS/Node resolution)
+- **packages/app/** - (Planned) TanStack Start application (ESM/Bundler resolution)
+
+This separation allows each package to have different TypeScript configurations optimized for their respective use cases.
+
 ## Architecture
 
 ### Infrastructure Components
@@ -53,18 +59,22 @@ This project deploys a static "Under Construction" website for the domain `nodm.
 ├── .github/
 │   └── workflows/
 │       └── deploy.yml   # GitHub Actions CI/CD workflow
-├── iac/
-│   └── index.ts         # Pulumi infrastructure configuration
+├── packages/
+│   └── iac/             # Infrastructure as code
+│       ├── index.ts     # Pulumi infrastructure configuration
+│       ├── package.json # IAC dependencies
+│       ├── tsconfig.json # TypeScript config (CommonJS)
+│       ├── Pulumi.yaml  # Pulumi project metadata
+│       └── Pulumi.dev.yaml # Stack configuration
 ├── src/
 │   └── index.html       # Under construction page
-├── package.json         # Node.js dependencies
-├── tsconfig.json        # TypeScript configuration
+├── package.json         # Workspace root configuration
 └── CLAUDE.md           # This file
 ```
 
 ## Key Files
 
-### iac/index.ts
+### packages/iac/index.ts
 Main Pulumi infrastructure file that defines:
 - S3 bucket and access policies
 - CloudFront distribution configuration
@@ -83,10 +93,10 @@ Static HTML page with:
 
 ### .github/workflows/deploy.yml
 GitHub Actions workflow that:
-- Triggers on push to main branch
+- Triggers on push to main branch (filtered paths)
 - Sets up Node.js and npm
-- Installs project dependencies
-- Configures AWS credentials
+- Installs workspace dependencies
+- Configures AWS credentials via OIDC
 - Deploys infrastructure using Pulumi
 - Runs automatically on every commit to main
 
@@ -456,7 +466,7 @@ Alternatively, manually create the `nodm-name-pulumi-state` bucket before your f
 npm install
 
 # Navigate to infrastructure directory
-cd iac
+cd packages/iac
 
 # Login to S3 backend (first time only)
 pulumi login s3://nodm-name-pulumi-state
@@ -465,13 +475,13 @@ pulumi login s3://nodm-name-pulumi-state
 pulumi stack select prod
 
 # Preview changes
-pulumi preview
+npm run preview
 
 # Deploy infrastructure
-pulumi up
+npm run deploy
 
 # Destroy infrastructure
-pulumi destroy
+npm run destroy
 ```
 
 ### CI/CD Deployment (Automatic)
@@ -539,20 +549,20 @@ After deployment, Pulumi exports:
 
 ### Updating the Website
 1. Modify `src/index.html`
-2. Run `pulumi up` to upload changes
+2. Run `npm run deploy` from `packages/iac/` to upload changes
 3. CloudFront cache may take up to 24 hours to refresh
 4. To force immediate update, create a CloudFront invalidation
 
 ### Adding New Pages
 1. Add HTML files to `src/` directory
-2. Create new `BucketObject` resources in `iac/index.ts`
+2. Create new `BucketObject` resources in `packages/iac/index.ts`
 3. Update CloudFront configuration if needed
-4. Deploy with `pulumi up` (from the `iac/` directory)
+4. Deploy with `npm run deploy` from `packages/iac/`
 
 ### Subdomain Management
 To add more subdomains:
-1. Add subdomain names to the `subdomains` array in `iac/index.ts`
-2. Run `pulumi up` to create DNS records and update certificate
+1. Add subdomain names to the `subdomains` array in `packages/iac/index.ts`
+2. Run `npm run deploy` from `packages/iac/` to create DNS records and update certificate
 
 ## Cost Considerations
 
@@ -596,9 +606,10 @@ To add more subdomains:
 
 ### Current Implementation
 - Automatic deployment on push to `main` branch
+- Path filtering (only triggers on changes to src/, packages/iac/, configs)
 - GitHub Actions workflow with OIDC authentication
 - Temporary AWS credentials (no long-lived secrets)
-- Node.js environment setup
+- Node.js workspace environment
 - Pulumi integration for infrastructure as code
 - Self-managed state storage in S3
 
@@ -614,6 +625,7 @@ To add more subdomains:
 
 ## Future Enhancements
 
+- **TanStack Start application** in packages/app/ to replace static HTML
 - Add custom error pages (404, 403)
 - Implement logging (CloudFront + S3 access logs)
 - Add CloudWatch alarms for monitoring
