@@ -4,9 +4,9 @@
 
 This project deploys a static "Under Construction" website for the domain `nodm.name` using AWS infrastructure managed by Pulumi.
 
-The repository is structured as an npm workspace monorepo to support future additions:
+The repository is structured as an npm workspace monorepo:
 - **packages/iac/** - Infrastructure as code with Pulumi (CommonJS/Node resolution)
-- **packages/app/** - (Planned) TanStack Start application (ESM/Bundler resolution)
+- **packages/app/** - TanStack Start application with React 19 (ESM/Bundler resolution)
 
 This separation allows each package to have different TypeScript configurations optimized for their respective use cases.
 
@@ -60,14 +60,25 @@ This separation allows each package to have different TypeScript configurations 
 │   └── workflows/
 │       └── deploy.yml   # GitHub Actions CI/CD workflow
 ├── packages/
-│   └── iac/             # Infrastructure as code
-│       ├── index.ts     # Pulumi infrastructure configuration
-│       ├── package.json # IAC dependencies
-│       ├── tsconfig.json # TypeScript config (CommonJS)
-│       ├── Pulumi.yaml  # Pulumi project metadata
-│       └── Pulumi.dev.yaml # Stack configuration
+│   ├── iac/             # Infrastructure as code
+│   │   ├── index.ts     # Pulumi infrastructure configuration
+│   │   ├── package.json # IAC dependencies
+│   │   ├── tsconfig.json # TypeScript config (CommonJS)
+│   │   ├── Pulumi.yaml  # Pulumi project metadata
+│   │   └── Pulumi.dev.yaml # Stack configuration
+│   └── app/             # TanStack Start application
+│       ├── src/
+│       │   ├── routes/  # File-based routing
+│       │   ├── components/ # React components
+│       │   ├── router.tsx
+│       │   └── styles.css
+│       ├── public/      # Static assets
+│       ├── package.json # App dependencies
+│       ├── tsconfig.json # TypeScript config (ESM/Bundler)
+│       ├── vite.config.ts # Vite configuration
+│       └── biome.json   # Biome configuration
 ├── src/
-│   └── index.html       # Under construction page
+│   └── index.html       # Under construction page (static)
 ├── package.json         # Workspace root configuration
 └── CLAUDE.md           # This file
 ```
@@ -90,6 +101,19 @@ Static HTML page with:
 - Floating background shapes
 - Responsive design for mobile devices
 - All styles embedded (no external dependencies)
+
+### packages/app/
+TanStack Start application with:
+- **React 19** - Latest React with modern features
+- **TanStack Router** - Type-safe file-based routing
+- **Vite** - Fast development and build tooling
+- **Tailwind CSS v4** - Utility-first CSS framework
+- **TypeScript** - Full type safety with ESM/Bundler resolution
+- **Biome** - Fast linting and formatting
+- **Vitest** - Unit testing framework
+- **File-based routing** in src/routes/
+- **Server functions** and API routes support
+- **SSR capabilities** with multiple rendering modes
 
 ### .github/workflows/deploy.yml
 GitHub Actions workflow that:
@@ -547,20 +571,49 @@ After deployment, Pulumi exports:
 
 ## Development Notes
 
-### Updating the Website
+### Working with the TanStack Start App
+
+**Development server:**
+```bash
+cd packages/app
+npm run dev
+```
+Runs at http://localhost:3000 with hot reload.
+
+**Build for production:**
+```bash
+cd packages/app
+npm run build
+```
+
+**Available scripts:**
+- `npm run dev` - Start development server (port 3000)
+- `npm run build` - Build for production
+- `npm run serve` - Preview production build
+- `npm run test` - Run tests with Vitest
+- `npm run lint` - Lint with Biome
+- `npm run format` - Format with Biome
+- `npm run check` - Run Biome checks
+
+**File-based routing:**
+- Add routes in `packages/app/src/routes/`
+- Route tree auto-generates in `src/routeTree.gen.ts`
+
+### Updating the Static Website
 1. Modify `src/index.html`
 2. Run `npm run deploy` from `packages/iac/` to upload changes
 3. CloudFront cache may take up to 24 hours to refresh
 4. To force immediate update, create a CloudFront invalidation
 
-### Adding New Pages
+### Infrastructure Changes
+
+**Adding new static pages:**
 1. Add HTML files to `src/` directory
 2. Create new `BucketObject` resources in `packages/iac/index.ts`
 3. Update CloudFront configuration if needed
 4. Deploy with `npm run deploy` from `packages/iac/`
 
-### Subdomain Management
-To add more subdomains:
+**Subdomain management:**
 1. Add subdomain names to the `subdomains` array in `packages/iac/index.ts`
 2. Run `npm run deploy` from `packages/iac/` to create DNS records and update certificate
 
@@ -625,7 +678,7 @@ To add more subdomains:
 
 ## Future Enhancements
 
-- **TanStack Start application** in packages/app/ to replace static HTML
+- **Deploy TanStack Start app** to replace/supplement static HTML
 - Add custom error pages (404, 403)
 - Implement logging (CloudFront + S3 access logs)
 - Add CloudWatch alarms for monitoring
@@ -633,3 +686,4 @@ To add more subdomains:
 - Implement cache invalidation strategy
 - Add preview deployments for pull requests
 - Set up staging environment
+- Configure CI/CD for app deployment (S3/CloudFront or container-based)

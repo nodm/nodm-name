@@ -5,12 +5,13 @@
 Personal website monorepo with AWS infrastructure managed by Pulumi.
 ## Features
 
+- **TanStack Start application** with React 19, TypeScript, and Tailwind CSS v4
 - **Private S3 hosting** with CloudFront Origin Access Control (OAC)
 - **HTTPS-only** with ACM certificate (TLS 1.2+)
 - **Custom domain**
 - **GitHub Actions CI/CD** with OIDC authentication
 - **Self-managed Pulumi state** in S3 (no Pulumi Cloud required)
-- **Monorepo structure** ready for future applications
+- **Monorepo structure** with separate packages for app and infrastructure
 
 ## Prerequisites
 
@@ -59,6 +60,14 @@ Personal website monorepo with AWS infrastructure managed by Pulumi.
 - `npm run lint:fix` - Fix linting issues
 - `npm run format` - Format code with Biome
 
+**Application (packages/app):**
+- `npm run dev` - Start development server (port 3000)
+- `npm run build` - Build for production
+- `npm run serve` - Preview production build
+- `npm run test` - Run tests with Vitest
+- `npm run lint` - Lint with Biome
+- `npm run format` - Format with Biome
+
 **Infrastructure (packages/iac):**
 - `npm run preview` - Preview infrastructure changes
 - `npm run deploy` - Deploy infrastructure to AWS
@@ -70,19 +79,48 @@ Personal website monorepo with AWS infrastructure managed by Pulumi.
 ```
 .
 ├── packages/
+│   ├── app/              # TanStack Start application
+│   │   ├── src/
+│   │   │   ├── routes/   # File-based routing
+│   │   │   └── components/ # React components
+│   │   ├── package.json  # App dependencies
+│   │   ├── tsconfig.json # TypeScript config (ESM)
+│   │   └── vite.config.ts # Vite configuration
 │   └── iac/              # Infrastructure as code
 │       ├── index.ts      # Pulumi infrastructure definition
 │       ├── package.json  # IAC dependencies
 │       └── tsconfig.json # TypeScript config (CommonJS)
 ├── src/
-│   └── index.html        # Static website content
+│   └── index.html        # Static "under construction" page
 ├── .github/
 │   └── workflows/
 │       └── deploy.yml    # CI/CD pipeline
 └── package.json          # Workspace root
 ```
 
+## Development
+
+### Running the App Locally
+
+```bash
+cd packages/app
+npm run dev
+```
+
+Starts development server at http://localhost:3000 with hot reload.
+
+### Building the App
+
+```bash
+cd packages/app
+npm run build
+```
+
+Builds optimized production bundle.
+
 ## Deployment
+
+### Infrastructure Deployment
 
 **Automatic (Recommended):**
 Push to `main` branch triggers GitHub Actions deployment.
@@ -93,7 +131,7 @@ cd packages/iac
 pulumi up
 ```
 
-## Updating Content
+### Updating Static Content
 
 1. Edit `src/index.html`
 2. Push to `main` (auto-deploys) or run `pulumi up` manually
