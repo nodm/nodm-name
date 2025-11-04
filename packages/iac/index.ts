@@ -208,8 +208,8 @@ const cloudfrontDistribution = new aws.cloudfront.Distribution("cdn", {
             },
         },
         minTtl: 0,
-        defaultTtl: 0,
-        maxTtl: 0,
+        defaultTtl: 60, // 1 minute default cache, respects Cache-Control headers
+        maxTtl: 3600, // 1 hour max
         compress: true,
     },
     // Ordered cache behaviors: S3 for static assets (high priority)
