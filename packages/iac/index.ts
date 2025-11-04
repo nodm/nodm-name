@@ -115,7 +115,7 @@ const apiStage = new aws.apigatewayv2.Stage("api-stage", {
     name: "$default",
     autoDeploy: true,
     tags: commonTags,
-});
+}, { dependsOn: [defaultRoute, lambdaIntegration] });
 
 // Grant API Gateway permission to invoke Lambda
 new aws.lambda.Permission("api-gateway-invoke", {
