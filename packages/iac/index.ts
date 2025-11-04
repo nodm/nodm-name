@@ -93,6 +93,14 @@ const httpApi = new aws.apigatewayv2.Api("http-api", {
     tags: commonTags,
 });
 
+// Grant API Gateway permission to invoke Lambda (must be created first)
+const lambdaPermission = new aws.lambda.Permission("api-gateway-invoke", {
+    action: "lambda:InvokeFunction",
+    function: lambdaFunction.name,
+    principal: "apigateway.amazonaws.com",
+    sourceArn: pulumi.interpolate`${httpApi.executionArn}/*/*`,
+});
+
 // Create Lambda integration
 const lambdaIntegration = new aws.apigatewayv2.Integration("lambda-integration", {
     apiId: httpApi.id,
@@ -100,7 +108,7 @@ const lambdaIntegration = new aws.apigatewayv2.Integration("lambda-integration",
     integrationUri: lambdaFunction.arn,
     integrationMethod: "POST",
     payloadFormatVersion: "2.0",
-});
+}, { dependsOn: [lambdaPermission] });
 
 // Create default route that forwards all requests to Lambda
 const defaultRoute = new aws.apigatewayv2.Route("default-route", {
@@ -115,15 +123,7 @@ const apiStage = new aws.apigatewayv2.Stage("api-stage", {
     name: "$default",
     autoDeploy: true,
     tags: commonTags,
-}, { dependsOn: [defaultRoute, lambdaIntegration] });
-
-// Grant API Gateway permission to invoke Lambda
-new aws.lambda.Permission("api-gateway-invoke", {
-    action: "lambda:InvokeFunction",
-    function: lambdaFunction.name,
-    principal: "apigateway.amazonaws.com",
-    sourceArn: pulumi.interpolate`${httpApi.executionArn}/*/*`,
-});
+}, { dependsOn: [defaultRoute, lambdaIntegration, lambdaPermission] });
 
 // ===== SSL CERTIFICATE =====
 
