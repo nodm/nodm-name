@@ -221,6 +221,7 @@ To deploy this infrastructure, you need the following AWS permissions:
 - `lambda:CreateFunction`
 - `lambda:DeleteFunction`
 - `lambda:GetFunction`
+- `lambda:GetFunctionCodeSigningConfig`
 - `lambda:UpdateFunctionCode`
 - `lambda:UpdateFunctionConfiguration`
 - `lambda:AddPermission`
@@ -228,6 +229,7 @@ To deploy this infrastructure, you need the following AWS permissions:
 - `lambda:GetPolicy`
 - `lambda:TagResource`
 - `lambda:ListTags`
+- `lambda:ListVersionsByFunction`
 
 #### API Gateway Permissions
 - `apigateway:GET`
@@ -235,6 +237,7 @@ To deploy this infrastructure, you need the following AWS permissions:
 - `apigateway:PUT`
 - `apigateway:DELETE`
 - `apigateway:PATCH`
+- `apigateway:TagResource`
 
 #### IAM Permissions (for Lambda role)
 - `iam:CreateRole`
@@ -244,6 +247,8 @@ To deploy this infrastructure, you need the following AWS permissions:
 - `iam:AttachRolePolicy`
 - `iam:DetachRolePolicy`
 - `iam:ListAttachedRolePolicies`
+- `iam:ListRolePolicies`
+- `iam:ListInstanceProfilesForRole`
 - `iam:TagRole`
 - `iam:UntagRole`
 
@@ -386,6 +391,7 @@ Create an IAM policy with the following JSON:
         "lambda:DeleteFunction",
         "lambda:GetFunction",
         "lambda:GetFunctionConfiguration",
+        "lambda:GetFunctionCodeSigningConfig",
         "lambda:UpdateFunctionCode",
         "lambda:UpdateFunctionConfiguration",
         "lambda:AddPermission",
@@ -393,7 +399,8 @@ Create an IAM policy with the following JSON:
         "lambda:GetPolicy",
         "lambda:TagResource",
         "lambda:UntagResource",
-        "lambda:ListTags"
+        "lambda:ListTags",
+        "lambda:ListVersionsByFunction"
       ],
       "Resource": "arn:aws:lambda:*:*:function:nodm-name-app"
     },
@@ -405,11 +412,15 @@ Create an IAM policy with the following JSON:
         "apigateway:POST",
         "apigateway:PUT",
         "apigateway:DELETE",
-        "apigateway:PATCH"
+        "apigateway:PATCH",
+        "apigateway:TagResource"
       ],
       "Resource": [
         "arn:aws:apigateway:*::/apis",
-        "arn:aws:apigateway:*::/apis/*"
+        "arn:aws:apigateway:*::/apis/*",
+        "arn:aws:apigateway:*::/v2/apis",
+        "arn:aws:apigateway:*::/v2/apis/*",
+        "arn:aws:apigateway:*::/tags/*"
       ]
     },
     {
@@ -423,6 +434,8 @@ Create an IAM policy with the following JSON:
         "iam:AttachRolePolicy",
         "iam:DetachRolePolicy",
         "iam:ListAttachedRolePolicies",
+        "iam:ListRolePolicies",
+        "iam:ListInstanceProfilesForRole",
         "iam:TagRole",
         "iam:UntagRole"
       ],
@@ -554,7 +567,7 @@ The IAM policy includes conditions that enforce required tags on all resources:
 - **Multi-Region Access**: ACM certificate is created in `us-east-1` (required for CloudFront), ensure permissions work across regions
 - **Pre-existing Route53 Hosted Zone**: The deployment assumes a Route53 hosted zone for `nodm.name` already exists
 - **CloudFront Global Service**: CloudFront is a global service, so `Resource: "*"` is required for most CloudFront actions
-- **API Gateway Global Actions**: API Gateway uses `Resource: "*"` and path-based resources for v2 HTTP APIs
+- **API Gateway Resource Patterns**: API Gateway permissions include both v1 REST APIs (`/apis/*`) and v2 HTTP APIs (`/v2/apis/*`)
 - **Lambda Function Scoping**: Lambda permissions are scoped to the specific function name (`nodm-name-app`) for security
 - **IAM Role Scoping**: IAM role permissions use wildcard pattern (`nodm-name-*`) to allow Pulumi-managed role creation
 - **PassRole Permission**: The `iam:PassRole` permission is required for Lambda to assume the execution role
