@@ -202,7 +202,7 @@ const cloudfrontDistribution = new aws.cloudfront.Distribution("cdn", {
         cachedMethods: ["GET", "HEAD", "OPTIONS"],
         forwardedValues: {
             queryString: true,
-            headers: ["Accept", "Accept-Language", "Authorization", "CloudFront-Forwarded-Proto", "Host", "Origin", "Referer", "User-Agent"],
+            headers: ["Accept", "Accept-Language", "Authorization", "CloudFront-Forwarded-Proto", "Origin", "Referer", "User-Agent"],
             cookies: {
                 forward: "all",
             },
