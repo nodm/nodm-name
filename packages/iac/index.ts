@@ -15,7 +15,9 @@ const commonTags = {
 // Note: The Pulumi state bucket (nodm-name-pulumi-state) is managed separately
 // and should not be part of the infrastructure code to avoid circular dependencies
 
-// Create an S3 bucket (private, HTTPS-only access via CloudFront)
+// ===== S3 BUCKET FOR STATIC ASSETS =====
+
+// Create an S3 bucket for static assets (CSS, JS, images)
 const bucket = new aws.s3.Bucket("website-bucket", {
     bucket: "nodm-name",
     tags: commonTags,
@@ -30,7 +32,7 @@ new aws.s3.BucketPublicAccessBlock("public-access-block", {
     restrictPublicBuckets: true,
 });
 
-// Create CloudFront Origin Access Control
+// Create CloudFront Origin Access Control for S3
 const oac = new aws.cloudfront.OriginAccessControl("oac", {
     name: "nodm-name-oac",
     description: "OAC for nodm.name S3 bucket",
@@ -39,14 +41,91 @@ const oac = new aws.cloudfront.OriginAccessControl("oac", {
     signingProtocol: "sigv4",
 });
 
-// Upload the index.html file
-new aws.s3.BucketObject("index.html", {
-    bucket: bucket.id,
-    source: new pulumi.asset.FileAsset(path.join(__dirname, "..", "..", "src", "index.html")),
-    contentType: "text/html",
-    cacheControl: "public, max-age=600",
+// ===== LAMBDA FUNCTION =====
+
+// Create IAM role for Lambda
+const lambdaRole = new aws.iam.Role("lambda-role", {
+    name: "nodm-name-lambda-role",
+    assumeRolePolicy: JSON.stringify({
+        Version: "2012-10-17",
+        Statement: [{
+            Effect: "Allow",
+            Principal: {
+                Service: "lambda.amazonaws.com",
+            },
+            Action: "sts:AssumeRole",
+        }],
+    }),
     tags: commonTags,
 });
+
+// Attach basic Lambda execution policy
+new aws.iam.RolePolicyAttachment("lambda-basic-execution", {
+    role: lambdaRole.name,
+    policyArn: "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+});
+
+// Create Lambda function with TanStack Start handler
+const lambdaFunction = new aws.lambda.Function("app-function", {
+    name: "nodm-name-app",
+    runtime: "nodejs22.x",
+    handler: "index.handler",
+    role: lambdaRole.arn,
+    code: new pulumi.asset.AssetArchive({
+        ".": new pulumi.asset.FileArchive(path.join(__dirname, "..", "app", ".output", "server")),
+    }),
+    timeout: 30,
+    memorySize: 512,
+    environment: {
+        variables: {
+            NODE_ENV: "production",
+        },
+    },
+    tags: commonTags,
+});
+
+// ===== API GATEWAY =====
+
+// Create HTTP API (v2) - cheaper and simpler than REST API
+const httpApi = new aws.apigatewayv2.Api("http-api", {
+    name: "nodm-name-api",
+    protocolType: "HTTP",
+    tags: commonTags,
+});
+
+// Create Lambda integration
+const lambdaIntegration = new aws.apigatewayv2.Integration("lambda-integration", {
+    apiId: httpApi.id,
+    integrationType: "AWS_PROXY",
+    integrationUri: lambdaFunction.arn,
+    integrationMethod: "POST",
+    payloadFormatVersion: "2.0",
+});
+
+// Create default route that forwards all requests to Lambda
+const defaultRoute = new aws.apigatewayv2.Route("default-route", {
+    apiId: httpApi.id,
+    routeKey: "$default",
+    target: pulumi.interpolate`integrations/${lambdaIntegration.id}`,
+});
+
+// Create API stage (auto-deploy)
+const apiStage = new aws.apigatewayv2.Stage("api-stage", {
+    apiId: httpApi.id,
+    name: "$default",
+    autoDeploy: true,
+    tags: commonTags,
+});
+
+// Grant API Gateway permission to invoke Lambda
+new aws.lambda.Permission("api-gateway-invoke", {
+    action: "lambda:InvokeFunction",
+    function: lambdaFunction.name,
+    principal: "apigateway.amazonaws.com",
+    sourceArn: pulumi.interpolate`${httpApi.executionArn}/*/*`,
+});
+
+// ===== SSL CERTIFICATE =====
 
 // Get the hosted zone for the domain
 const hostedZone = aws.route53.getZone({
@@ -67,10 +146,8 @@ const certificate = new aws.acm.Certificate("ssl-cert", {
     tags: commonTags,
 }, { provider: usEast1Provider });
 
-// Create DNS validation records for all domains in the certificate
-// ACM may require separate validation records for each domain/subdomain
+// Create DNS validation records
 const certValidationRecords = certificate.domainValidationOptions.apply(options => {
-    // Get unique validation records (AWS may provide duplicates)
     const uniqueRecords = new Map<string, typeof options[0]>();
     options.forEach(option => {
         uniqueRecords.set(option.resourceRecordName, option);
@@ -93,31 +170,153 @@ const certificateValidation = new aws.acm.CertificateValidation("cert-validation
     validationRecordFqdns: certValidationRecords.apply(records => records.map(r => r.fqdn)),
 }, { provider: usEast1Provider });
 
-// Create CloudFront distribution for CDN (HTTPS-only)
+// ===== CLOUDFRONT DISTRIBUTION =====
+
+// Create CloudFront distribution with dual origins
 const cloudfrontDistribution = new aws.cloudfront.Distribution("cdn", {
     enabled: true,
-    defaultRootObject: "index.html",
     aliases: allDomains,
-    origins: [{
-        originId: "s3-website-origin",
-        domainName: bucket.bucketRegionalDomainName,
-        originAccessControlId: oac.id,
-    }],
+    // Two origins: API Gateway for dynamic content, S3 for static assets
+    origins: [
+        {
+            originId: "api-gateway-origin",
+            domainName: pulumi.interpolate`${httpApi.id}.execute-api.${aws.config.region}.amazonaws.com`,
+            customOriginConfig: {
+                httpPort: 80,
+                httpsPort: 443,
+                originProtocolPolicy: "https-only",
+                originSslProtocols: ["TLSv1.2"],
+            },
+        },
+        {
+            originId: "s3-static-origin",
+            domainName: bucket.bucketRegionalDomainName,
+            originAccessControlId: oac.id,
+        },
+    ],
+    // Default behavior: API Gateway for dynamic content
     defaultCacheBehavior: {
-        targetOriginId: "s3-website-origin",
+        targetOriginId: "api-gateway-origin",
         viewerProtocolPolicy: "redirect-to-https",
-        allowedMethods: ["GET", "HEAD", "OPTIONS"],
-        cachedMethods: ["GET", "HEAD"],
+        allowedMethods: ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"],
+        cachedMethods: ["GET", "HEAD", "OPTIONS"],
         forwardedValues: {
-            queryString: false,
+            queryString: true,
+            headers: ["Accept", "Accept-Language", "Authorization", "CloudFront-Forwarded-Proto", "Host", "Origin", "Referer", "User-Agent"],
             cookies: {
-                forward: "none",
+                forward: "all",
             },
         },
         minTtl: 0,
-        defaultTtl: 3600,
-        maxTtl: 86400,
+        defaultTtl: 0,
+        maxTtl: 0,
+        compress: true,
     },
+    // Ordered cache behaviors: S3 for static assets (high priority)
+    orderedCacheBehaviors: [
+        {
+            pathPattern: "/assets/*",
+            targetOriginId: "s3-static-origin",
+            viewerProtocolPolicy: "redirect-to-https",
+            allowedMethods: ["GET", "HEAD", "OPTIONS"],
+            cachedMethods: ["GET", "HEAD", "OPTIONS"],
+            forwardedValues: {
+                queryString: false,
+                cookies: {
+                    forward: "none",
+                },
+            },
+            minTtl: 0,
+            defaultTtl: 86400, // 1 day
+            maxTtl: 31536000, // 1 year
+            compress: true,
+        },
+        {
+            pathPattern: "/*.ico",
+            targetOriginId: "s3-static-origin",
+            viewerProtocolPolicy: "redirect-to-https",
+            allowedMethods: ["GET", "HEAD", "OPTIONS"],
+            cachedMethods: ["GET", "HEAD", "OPTIONS"],
+            forwardedValues: {
+                queryString: false,
+                cookies: {
+                    forward: "none",
+                },
+            },
+            minTtl: 0,
+            defaultTtl: 86400, // 1 day
+            maxTtl: 31536000, // 1 year
+            compress: true,
+        },
+        {
+            pathPattern: "/*.png",
+            targetOriginId: "s3-static-origin",
+            viewerProtocolPolicy: "redirect-to-https",
+            allowedMethods: ["GET", "HEAD", "OPTIONS"],
+            cachedMethods: ["GET", "HEAD", "OPTIONS"],
+            forwardedValues: {
+                queryString: false,
+                cookies: {
+                    forward: "none",
+                },
+            },
+            minTtl: 0,
+            defaultTtl: 86400, // 1 day
+            maxTtl: 31536000, // 1 year
+            compress: true,
+        },
+        {
+            pathPattern: "/*.svg",
+            targetOriginId: "s3-static-origin",
+            viewerProtocolPolicy: "redirect-to-https",
+            allowedMethods: ["GET", "HEAD", "OPTIONS"],
+            cachedMethods: ["GET", "HEAD", "OPTIONS"],
+            forwardedValues: {
+                queryString: false,
+                cookies: {
+                    forward: "none",
+                },
+            },
+            minTtl: 0,
+            defaultTtl: 86400, // 1 day
+            maxTtl: 31536000, // 1 year
+            compress: true,
+        },
+        {
+            pathPattern: "/*.json",
+            targetOriginId: "s3-static-origin",
+            viewerProtocolPolicy: "redirect-to-https",
+            allowedMethods: ["GET", "HEAD", "OPTIONS"],
+            cachedMethods: ["GET", "HEAD", "OPTIONS"],
+            forwardedValues: {
+                queryString: false,
+                cookies: {
+                    forward: "none",
+                },
+            },
+            minTtl: 0,
+            defaultTtl: 86400, // 1 day
+            maxTtl: 31536000, // 1 year
+            compress: true,
+        },
+        {
+            pathPattern: "/*.txt",
+            targetOriginId: "s3-static-origin",
+            viewerProtocolPolicy: "redirect-to-https",
+            allowedMethods: ["GET", "HEAD", "OPTIONS"],
+            cachedMethods: ["GET", "HEAD", "OPTIONS"],
+            forwardedValues: {
+                queryString: false,
+                cookies: {
+                    forward: "none",
+                },
+            },
+            minTtl: 0,
+            defaultTtl: 86400, // 1 day
+            maxTtl: 31536000, // 1 year
+            compress: true,
+        },
+    ],
     priceClass: "PriceClass_100",
     restrictions: {
         geoRestriction: {
@@ -157,6 +356,8 @@ new aws.s3.BucketPolicy("bucket-policy", {
     ),
 });
 
+// ===== DNS RECORDS =====
+
 // Create Route53 A records pointing to CloudFront
 new aws.route53.Record("apex-domain", {
     name: domainName,
@@ -183,8 +384,11 @@ subdomains.forEach(subdomain => {
     });
 });
 
-// Export the URLs
+// ===== OUTPUTS =====
+
 export const bucketName = bucket.id;
+export const lambdaFunctionName = lambdaFunction.name;
+export const apiGatewayUrl = pulumi.interpolate`${httpApi.apiEndpoint}`;
 export const cdnUrl = pulumi.interpolate`https://${cloudfrontDistribution.domainName}`;
 export const customDomainUrl = `https://${domainName}`;
 export const wwwUrl = `https://www.${domainName}`;

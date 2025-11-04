@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-This project deploys a static "Under Construction" website for the domain `nodm.name` using AWS infrastructure managed by Pulumi.
+This project deploys a **TanStack Start application** for the domain `nodm.name` using serverless AWS infrastructure managed by Pulumi.
 
 The repository is structured as an npm workspace monorepo:
 - **packages/iac/** - Infrastructure as code with Pulumi (CommonJS/Node resolution)
@@ -14,32 +14,55 @@ This separation allows each package to have different TypeScript configurations 
 
 ### Infrastructure Components
 
-1. **S3 Buckets**
-   - **Website Bucket** (`nodm-name`)
-     - Private bucket for storing website content
+1. **Lambda Function**
+   - **App Function** (`nodm-name-app`)
+     - Runtime: Node.js 22.x
+     - Handler: TanStack Start SSR handler (`.output/server/index.mjs`)
+     - Memory: 512 MB
+     - Timeout: 30 seconds
+     - IAM role with basic Lambda execution permissions
+     - Environment: Production mode
+
+2. **API Gateway HTTP API**
+   - **HTTP API** (`nodm-name-api`)
+     - Protocol: HTTP (v2)
+     - Integration: AWS_PROXY to Lambda function
+     - Default route (`$default`) forwards all requests to Lambda
+     - Auto-deploy enabled
+     - More cost-effective than REST API
+
+3. **S3 Bucket**
+   - **Static Assets Bucket** (`nodm-name`)
+     - Private bucket for client-side assets (CSS, JS, images)
      - Public access blocked at all levels
-     - Contains: `index.html` (under construction page)
+     - Contains: Built assets from `.output/public/`
+     - Origin Access Control (OAC) for CloudFront access
    - **Pulumi State Bucket** (`nodm-name-pulumi-state`)
      - Stores Pulumi infrastructure state
      - Versioning enabled for state history
      - Server-side encryption (AES256)
      - Private access only
 
-2. **CloudFront CDN**
+4. **CloudFront CDN**
    - Global content delivery network
    - HTTPS-only (redirects HTTP to HTTPS)
-   - Origin Access Control (OAC) for secure S3 access
-   - Cache TTL: 3600s default, 86400s max
+   - **Dual-origin architecture**:
+     - **API Gateway origin** (default): Dynamic content, SSR pages
+     - **S3 origin**: Static assets (`/assets/*`, images, manifests)
+   - **Cache behaviors**:
+     - Static assets: Long cache (1 day default, 1 year max)
+     - Dynamic content: No cache (always fresh from Lambda)
+   - Compression enabled for all content
    - Price class: PriceClass_100 (US, Canada, Europe)
 
-3. **SSL/TLS Certificate**
+5. **SSL/TLS Certificate**
    - AWS Certificate Manager (ACM)
    - Region: us-east-1 (required for CloudFront)
    - Covers: `nodm.name` and `www.nodm.name`
    - Validation: DNS
    - Minimum protocol: TLSv1.2
 
-4. **Route53 DNS**
+6. **Route53 DNS**
    - A records for apex domain (`nodm.name`)
    - A records for www subdomain
    - Both alias to CloudFront distribution
@@ -47,10 +70,12 @@ This separation allows each package to have different TypeScript configurations 
 ### Security Features
 
 - Private S3 bucket (no public access)
-- CloudFront OAC authentication
+- CloudFront OAC authentication for S3
 - HTTPS-only access (HTTP redirects to HTTPS)
 - TLS 1.2 minimum
-- Bucket policy restricts access to CloudFront only
+- Lambda execution in VPC not required (stateless)
+- IAM least-privilege for Lambda execution
+- API Gateway invocation restricted to CloudFront origin
 
 ## File Structure
 
@@ -87,20 +112,20 @@ This separation allows each package to have different TypeScript configurations 
 
 ### packages/iac/index.ts
 Main Pulumi infrastructure file that defines:
-- S3 bucket and access policies
-- CloudFront distribution configuration
+- Lambda function with TanStack Start handler
+- API Gateway HTTP API and integrations
+- S3 bucket for static assets and access policies
+- CloudFront distribution with dual origins
 - ACM certificate and DNS validation
 - Route53 DNS records
+- IAM roles and permissions
 - Resource tagging and organization
 
-### src/index.html
-Static HTML page with:
-- Modern gradient design (purple theme)
-- Animated construction icon
-- Progress bar showing 75% completion
-- Floating background shapes
-- Responsive design for mobile devices
-- All styles embedded (no external dependencies)
+### packages/iac/deploy.sh
+Deployment script that:
+- Builds the TanStack Start app
+- Syncs static assets to S3
+- Deploys infrastructure with Pulumi
 
 ### packages/app/
 TanStack Start application with:
@@ -117,11 +142,13 @@ TanStack Start application with:
 
 ### .github/workflows/deploy.yml
 GitHub Actions workflow that:
-- Triggers on push to main branch (filtered paths)
+- Triggers on push to main branch (filtered paths: `packages/app/**`, `packages/iac/**`)
 - Sets up Node.js and npm
 - Installs workspace dependencies
 - Configures AWS credentials via OIDC
-- Deploys infrastructure using Pulumi
+- Builds TanStack Start app
+- Syncs static assets to S3
+- Deploys infrastructure using Pulumi (includes Lambda code update)
 - Runs automatically on every commit to main
 
 ## Configuration
@@ -189,6 +216,36 @@ To deploy this infrastructure, you need the following AWS permissions:
 - `route53:ChangeResourceRecordSets`
 - `route53:GetChange`
 - `route53:ListResourceRecordSets`
+
+#### Lambda Permissions
+- `lambda:CreateFunction`
+- `lambda:DeleteFunction`
+- `lambda:GetFunction`
+- `lambda:UpdateFunctionCode`
+- `lambda:UpdateFunctionConfiguration`
+- `lambda:AddPermission`
+- `lambda:RemovePermission`
+- `lambda:GetPolicy`
+- `lambda:TagResource`
+- `lambda:ListTags`
+
+#### API Gateway Permissions
+- `apigateway:GET`
+- `apigateway:POST`
+- `apigateway:PUT`
+- `apigateway:DELETE`
+- `apigateway:PATCH`
+
+#### IAM Permissions (for Lambda role)
+- `iam:CreateRole`
+- `iam:DeleteRole`
+- `iam:GetRole`
+- `iam:PassRole`
+- `iam:AttachRolePolicy`
+- `iam:DetachRolePolicy`
+- `iam:ListAttachedRolePolicies`
+- `iam:TagRole`
+- `iam:UntagRole`
 
 ### IAM Policy Example
 
@@ -320,6 +377,56 @@ Create an IAM policy with the following JSON:
         "route53:ListTagsForResource"
       ],
       "Resource": "*"
+    },
+    {
+      "Sid": "LambdaPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:CreateFunction",
+        "lambda:DeleteFunction",
+        "lambda:GetFunction",
+        "lambda:GetFunctionConfiguration",
+        "lambda:UpdateFunctionCode",
+        "lambda:UpdateFunctionConfiguration",
+        "lambda:AddPermission",
+        "lambda:RemovePermission",
+        "lambda:GetPolicy",
+        "lambda:TagResource",
+        "lambda:UntagResource",
+        "lambda:ListTags"
+      ],
+      "Resource": "arn:aws:lambda:*:*:function:nodm-name-app"
+    },
+    {
+      "Sid": "APIGatewayPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "apigateway:GET",
+        "apigateway:POST",
+        "apigateway:PUT",
+        "apigateway:DELETE",
+        "apigateway:PATCH"
+      ],
+      "Resource": [
+        "arn:aws:apigateway:*::/apis",
+        "arn:aws:apigateway:*::/apis/*"
+      ]
+    },
+    {
+      "Sid": "IAMRolePermissions",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole",
+        "iam:DeleteRole",
+        "iam:GetRole",
+        "iam:PassRole",
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy",
+        "iam:ListAttachedRolePolicies",
+        "iam:TagRole",
+        "iam:UntagRole"
+      ],
+      "Resource": "arn:aws:iam::*:role/nodm-name-*"
     }
   ]
 }
@@ -447,8 +554,12 @@ The IAM policy includes conditions that enforce required tags on all resources:
 - **Multi-Region Access**: ACM certificate is created in `us-east-1` (required for CloudFront), ensure permissions work across regions
 - **Pre-existing Route53 Hosted Zone**: The deployment assumes a Route53 hosted zone for `nodm.name` already exists
 - **CloudFront Global Service**: CloudFront is a global service, so `Resource: "*"` is required for most CloudFront actions
+- **API Gateway Global Actions**: API Gateway uses `Resource: "*"` and path-based resources for v2 HTTP APIs
+- **Lambda Function Scoping**: Lambda permissions are scoped to the specific function name (`nodm-name-app`) for security
+- **IAM Role Scoping**: IAM role permissions use wildcard pattern (`nodm-name-*`) to allow Pulumi-managed role creation
+- **PassRole Permission**: The `iam:PassRole` permission is required for Lambda to assume the execution role
 - **Route53 Tagging**: Route53 DNS records don't support tags, so no condition is added to Route53 permissions
-- **Least Privilege**: The S3 permissions are scoped to specific bucket names (`nodm-name` and `nodm-name-pulumi-state`) for better security
+- **Least Privilege**: S3, Lambda, and IAM permissions are scoped to specific resources for better security
 - **Pulumi State Storage**: This project uses self-managed state in the `nodm-name-pulumi-state` S3 bucket. The IAM policy includes permissions for both the website bucket and the state bucket.
 - **State Bucket Versioning**: The state bucket has versioning enabled to maintain history and allow rollback if needed
 - **State Bucket Encryption**: Server-side encryption (AES256) is enabled on the state bucket for security
@@ -501,12 +612,21 @@ pulumi stack select prod
 # Preview changes
 npm run preview
 
-# Deploy infrastructure
+# Deploy everything (app + infrastructure)
+npm run deploy-all
+# This runs: build app → sync static assets to S3 → deploy with Pulumi
+
+# Or deploy infrastructure only (without building app)
 npm run deploy
 
 # Destroy infrastructure
 npm run destroy
 ```
+
+**Note**: The `deploy-all` script:
+1. Builds the TanStack Start app (`npm run build` in packages/app)
+2. Syncs static assets from `.output/public/` to S3
+3. Deploys infrastructure with Pulumi (which includes Lambda function code)
 
 ### CI/CD Deployment (Automatic)
 
@@ -530,18 +650,20 @@ Before the CI/CD pipeline can work, you need to:
 
 #### How It Works
 
-1. Developer pushes code to `main` branch
+1. Developer pushes code to `main` branch (affecting `packages/app/**` or `packages/iac/**`)
 2. GitHub Actions workflow triggers automatically
 3. Workflow checks out code and sets up Node.js
-4. Installs npm dependencies
+4. Installs npm dependencies (workspace)
 5. Authenticates with AWS using OIDC (assumes the IAM role)
 6. Receives temporary AWS credentials valid for the workflow duration
 7. Installs Pulumi CLI
 8. Logs into S3 backend (`s3://nodm-name-pulumi-state`)
 9. Selects or creates the `prod` stack
-10. Runs `pulumi up` to deploy changes
-11. Infrastructure is updated automatically
-12. Temporary credentials expire after workflow completes
+10. **Builds TanStack Start app** (`npm run build` in packages/app)
+11. **Syncs static assets** from `.output/public/` to S3 bucket
+12. Runs `pulumi up` to deploy infrastructure changes (includes Lambda code update)
+13. Infrastructure and application are updated automatically
+14. Temporary credentials expire after workflow completes
 
 #### Workflow File Location
 
@@ -557,17 +679,20 @@ The workflow is defined in `.github/workflows/deploy.yml`
 ### Outputs
 After deployment, Pulumi exports:
 - `bucketName`: S3 bucket identifier
+- `lambdaFunctionName`: Lambda function name
+- `apiGatewayUrl`: API Gateway endpoint URL
 - `cdnUrl`: CloudFront distribution URL
 - `customDomainUrl`: https://nodm.name
 - `wwwUrl`: https://www.nodm.name
 
 ## Recent Changes
 
-### Latest Commits
-- Fix: Update CloudFront origin ID and target origin ID for S3 bucket
-- Fix: Update viewer protocol policy to redirect to HTTPS
-- Feat: Add deployment setup
-- Feat: Add "Under construction" page
+### Latest Updates
+- **Feat**: Deployed TanStack Start app with Lambda + API Gateway
+- **Feat**: Added dual-origin CloudFront (API Gateway + S3)
+- **Feat**: Configured Nitro v2 plugin with AWS Lambda preset
+- **Feat**: Added deployment script for static assets
+- **Feat**: Updated CI/CD workflow for app build and deployment
 
 ## Development Notes
 
@@ -599,31 +724,58 @@ npm run build
 - Add routes in `packages/app/src/routes/`
 - Route tree auto-generates in `src/routeTree.gen.ts`
 
-### Updating the Static Website
-1. Modify `src/index.html`
-2. Run `npm run deploy` from `packages/iac/` to upload changes
-3. CloudFront cache may take up to 24 hours to refresh
-4. To force immediate update, create a CloudFront invalidation
+### Updating the Application
+1. Modify code in `packages/app/src/`
+2. Test locally with `npm run dev`
+3. Deploy with `npm run deploy-all` from `packages/iac/`
+4. Application updates automatically (Lambda + static assets)
 
 ### Infrastructure Changes
-
-**Adding new static pages:**
-1. Add HTML files to `src/` directory
-2. Create new `BucketObject` resources in `packages/iac/index.ts`
-3. Update CloudFront configuration if needed
-4. Deploy with `npm run deploy` from `packages/iac/`
 
 **Subdomain management:**
 1. Add subdomain names to the `subdomains` array in `packages/iac/index.ts`
 2. Run `npm run deploy` from `packages/iac/` to create DNS records and update certificate
 
+**Lambda configuration:**
+1. Update timeout, memory, or environment variables in `packages/iac/index.ts`
+2. Deploy with `npm run deploy` from `packages/iac/`
+
 ## Cost Considerations
 
-- **S3**: Minimal (storage + requests)
-- **CloudFront**: Pay-per-use (requests + data transfer)
-- **Route53**: ~$0.50/month per hosted zone + query charges
+For **~1000 visitors/month** (estimated budget: **$10/month**):
+
+- **Lambda**:
+  - Free tier: 1M requests + 400,000 GB-seconds per month
+  - Expected cost: **$0-2/month** (well within free tier)
+
+- **API Gateway HTTP API**:
+  - Free tier: 1M requests per month (first 12 months)
+  - After free tier: $1 per million requests
+  - Expected cost: **$0-1/month**
+
+- **S3**:
+  - Storage + requests for static assets
+  - Expected cost: **<$1/month**
+
+- **CloudFront**:
+  - Free tier: 1TB data transfer out per month (first 12 months)
+  - Pay-per-use: requests + data transfer
+  - Expected cost: **$0-3/month**
+
+- **Route53**:
+  - Hosted zone: $0.50/month
+  - Query charges: ~$0.40/month for 1M queries
+  - Expected cost: **~$1/month**
+
 - **ACM Certificate**: Free
-- **Estimated total**: $1-5/month for low traffic
+
+**Estimated total**: **$2-8/month** (mostly free tier first year, then $5-10/month)
+
+### Cost Optimization Tips
+- Lambda cold starts: ~1-3s for low traffic (acceptable for this use case)
+- CloudFront caching reduces Lambda invocations
+- S3 static assets reduce Lambda load
+- HTTP API cheaper than REST API Gateway
 
 ## Security Best Practices
 
@@ -646,9 +798,23 @@ npm run build
 - Wait up to 30 minutes for validation
 
 ### CloudFront Not Serving Content
-- Verify S3 bucket policy allows CloudFront
+- Verify bucket policy allows CloudFront
 - Check OAC configuration
-- Ensure index.html is uploaded to bucket
+- Ensure static assets are uploaded to S3
+- Check CloudFront cache behaviors and origins
+- Create CloudFront invalidation to clear cache
+
+### Lambda Function Errors
+- Check CloudWatch Logs for Lambda execution logs
+- Verify Lambda has sufficient memory/timeout
+- Test Lambda function directly via API Gateway URL
+- Check Lambda permissions and IAM role
+
+### API Gateway Issues
+- Verify Lambda integration is configured correctly
+- Check API Gateway logs in CloudWatch
+- Test API Gateway endpoint directly
+- Ensure Lambda permission allows API Gateway invocation
 
 ### DNS Not Resolving
 - Verify Route53 A records exist
@@ -659,10 +825,12 @@ npm run build
 
 ### Current Implementation
 - Automatic deployment on push to `main` branch
-- Path filtering (only triggers on changes to src/, packages/iac/, configs)
+- Path filtering (triggers on `packages/app/**`, `packages/iac/**`)
 - GitHub Actions workflow with OIDC authentication
 - Temporary AWS credentials (no long-lived secrets)
 - Node.js workspace environment
+- TanStack Start app build step
+- Static asset sync to S3
 - Pulumi integration for infrastructure as code
 - Self-managed state storage in S3
 
@@ -678,12 +846,13 @@ npm run build
 
 ## Future Enhancements
 
-- **Deploy TanStack Start app** to replace/supplement static HTML
-- Add custom error pages (404, 403)
-- Implement logging (CloudFront + S3 access logs)
-- Add CloudWatch alarms for monitoring
-- Add content compression (Gzip/Brotli)
-- Implement cache invalidation strategy
+- ~~Deploy TanStack Start app~~ ✅ **COMPLETED**
+- Add custom error pages (404, 403) via Lambda
+- Implement logging (CloudFront + Lambda CloudWatch logs)
+- Add CloudWatch alarms for monitoring Lambda errors/latency
+- Implement automatic cache invalidation on deployment
 - Add preview deployments for pull requests
-- Set up staging environment
-- Configure CI/CD for app deployment (S3/CloudFront or container-based)
+- Set up staging environment (separate Lambda + stack)
+- Add Lambda provisioned concurrency for reduced cold starts
+- Implement Lambda@Edge for request/response manipulation
+- Add database integration (DynamoDB, RDS, etc.)
