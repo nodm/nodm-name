@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'src/**'           # Website content
+      - 'packages/app/**'  # TanStack Start app
       - 'packages/iac/**'  # Infrastructure code
       - 'package.json'     # Dependencies
       - 'package-lock.json'
@@ -52,6 +52,18 @@ jobs:
         working-directory: ./packages/iac
         env:
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+
+      - name: Build TanStack Start app
+        run: npm run build
+        working-directory: ./packages/app
+
+      - name: Sync static assets to S3
+        run: |
+          aws s3 sync .output/public/ s3://nodm-name/assets/ \
+            --delete \
+            --cache-control "public, max-age=31536000, immutable" \
+            --exclude "*.html"
+        working-directory: ./packages/app
 
       - name: Deploy with Pulumi
         run: pulumi up --yes

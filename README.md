@@ -2,14 +2,23 @@
 
 [![Deploy to AWS](https://github.com/nodm/nodm-name/actions/workflows/deploy.yml/badge.svg?branch=main)](https://github.com/nodm/nodm-name/actions/workflows/deploy.yml)
 
-A static website hosted on AWS using Pulumi infrastructure as code. This project deploys a static HTML page to S3 with CloudFront CDN distribution.
+Personal website monorepo with AWS infrastructure managed by Pulumi.
+## Features
+
+- **TanStack Start application** with React 19, TypeScript, and Tailwind CSS v4
+- **Private S3 hosting** with CloudFront Origin Access Control (OAC)
+- **HTTPS-only** with ACM certificate (TLS 1.2+)
+- **Custom domain**
+- **GitHub Actions CI/CD** with OIDC authentication
+- **Self-managed Pulumi state** in S3 (no Pulumi Cloud required)
+- **Monorepo structure** with separate packages for app and infrastructure
 
 ## Prerequisites
 
 - [Pulumi CLI](https://www.pulumi.com/docs/get-started/install/) (>= v3)
-- [Node.js](https://nodejs.org/) (>= 14)
+- [Node.js](https://nodejs.org/) (>= 22)
 - AWS credentials configured (via `aws configure` or environment variables)
-- An active Pulumi account (free tier available at https://app.pulumi.com)
+- Route53 hosted zone for your domain
 
 ## Getting Started
 
@@ -19,97 +28,127 @@ A static website hosted on AWS using Pulumi infrastructure as code. This project
    npm install
    ```
 
-2. Preview the infrastructure changes:
+2. Login to S3 backend:
+
+   ```bash
+   cd packages/iac
+   pulumi login s3://<bucket-name-for-pulumi-state>
+   ```
+
+3. Select stack:
+
+   ```bash
+   pulumi stack select prod
+   ```
+
+4. Preview infrastructure changes:
 
    ```bash
    npm run preview
    ```
 
-3. Deploy to AWS:
+5. Deploy to AWS:
 
    ```bash
    npm run deploy
    ```
 
-   This will create:
-   - S3 bucket configured for static website hosting
-   - CloudFront distribution for global CDN
-   - Bucket policies for public access
-   - Upload your static files
-
-4. Get the deployed URLs:
-
-   ```bash
-   npm run outputs
-   ```
-
-   You'll see:
-   - `websiteUrl` - Direct S3 website endpoint
-   - `cdnUrl` - CloudFront HTTPS URL (recommended)
-
 ## Available Scripts
 
-- `npm run preview` - Preview infrastructure changes before deploying
+**Root level:**
+- `npm run lint` - Check code with Biome
+- `npm run lint:fix` - Fix linting issues
+- `npm run format` - Format code with Biome
+
+**Application (packages/app):**
+- `npm run dev` - Start development server (port 3000)
+- `npm run build` - Build for production
+- `npm run serve` - Preview production build
+- `npm run test` - Run tests with Vitest
+- `npm run lint` - Lint with Biome
+- `npm run format` - Format with Biome
+
+**Infrastructure (packages/iac):**
+- `npm run preview` - Preview infrastructure changes
 - `npm run deploy` - Deploy infrastructure to AWS
 - `npm run destroy` - Tear down all AWS resources
-- `npm run outputs` - Display deployed resource URLs
-- `npm run lint` - Check code with Biome
-- `npm run lint:fix` - Fix linting issues automatically
-- `npm run format` - Format code with Biome
+- `npm run outputs` - Display deployed URLs
 
 ## Project Structure
 
 ```
 .
-├── index.ts              # Pulumi infrastructure definition
+├── packages/
+│   ├── app/              # TanStack Start application
+│   │   ├── src/
+│   │   │   ├── routes/   # File-based routing
+│   │   │   └── components/ # React components
+│   │   ├── package.json  # App dependencies
+│   │   ├── tsconfig.json # TypeScript config (ESM)
+│   │   └── vite.config.ts # Vite configuration
+│   └── iac/              # Infrastructure as code
+│       ├── index.ts      # Pulumi infrastructure definition
+│       ├── package.json  # IAC dependencies
+│       └── tsconfig.json # TypeScript config (CommonJS)
 ├── src/
-│   └── index.html       # Static website content
-├── package.json         # Node.js dependencies and scripts
-├── tsconfig.json        # TypeScript configuration
-├── biome.json          # Biome linter/formatter config
-└── Pulumi.yaml         # Pulumi project metadata
+│   └── index.html        # Static "under construction" page
+├── .github/
+│   └── workflows/
+│       └── deploy.yml    # CI/CD pipeline
+└── package.json          # Workspace root
 ```
 
-## Configuration
+## Development
 
-You can customize the AWS region and other settings:
+### Running the App Locally
 
 ```bash
-pulumi config set aws:region us-west-2
+cd packages/app
+npm run dev
 ```
 
-## Updating Content
+Starts development server at http://localhost:3000 with hot reload.
 
-To update the website content:
-
-1. Edit files in the `src/` directory
-2. Run `npm run deploy` to upload changes
-
-CloudFront caching is set to 1 hour by default. For immediate updates, you may need to invalidate the CloudFront cache.
-
-## Cleanup
-
-When you're done, remove all AWS resources:
+### Building the App
 
 ```bash
-npm run destroy
+cd packages/app
+npm run build
 ```
+
+Builds optimized production bundle.
+
+## Deployment
+
+### Infrastructure Deployment
+
+**Automatic (Recommended):**
+Push to `main` branch triggers GitHub Actions deployment.
+
+**Manual:**
+```bash
+cd packages/iac
+pulumi up
+```
+
+### Updating Static Content
+
+1. Edit `src/index.html`
+2. Push to `main` (auto-deploys) or run `pulumi up` manually
+3. CloudFront cache TTL: 1 hour (invalidate for immediate updates)
 
 ## Cost Considerations
 
-This infrastructure uses:
-- **S3**: Minimal cost for storage and requests
-- **CloudFront**: Free tier includes 1TB data transfer and 10M requests/month
+- **S3**: Minimal (storage + requests)
+- **CloudFront**: Pay-per-use (requests + data transfer)
+- **Route53**: ~$0.50/month per hosted zone + queries
+- **ACM**: Free
 
-Estimated cost: ~$0.50-$2/month for low traffic sites (after free tier).
+Estimated: $1-5/month for low traffic
 
-## Next Steps
+## Documentation
 
-- Add custom domain with Route53
-- Add SSL certificate with ACM
-- Implement CloudFront cache invalidation on deploy
-- Add CI/CD with GitHub Actions
-- Expand to a full static site generator (Astro, Next.js, etc.)
+See [CLAUDE.md](./CLAUDE.md) for detailed architecture, AWS permissions, and deployment setup.
 
 ## License
 
