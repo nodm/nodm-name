@@ -5,8 +5,10 @@ export default $config({
   app(input) {
     return {
       name: 'nodm-name',
-      removal: input?.stage === 'production' ? 'retain' : 'remove',
-      protect: ['production'].includes(input?.stage),
+      // removal: input?.stage === 'production' ? 'retain' : 'remove',
+      removal: 'remove',
+      // protect: ['production'].includes(input?.stage),
+      protect: false,
       home: 'aws',
       providers: {
         aws: {
