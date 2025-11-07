@@ -33,4 +33,8 @@ tsc --noEmit         # Check TypeScript errors
 - **Tailwind**: v4 with PostCSS
 
 ### Deployment
-GitHub Actions workflow triggers on main branch changes to package files. Previous infrastructure used AWS Lambda + API Gateway for TanStack Start.
+- **SST**: v3 for AWS infrastructure ([sst.config.ts](sst.config.ts))
+  - Next.js component deploys to AWS
+  - Production stage has retention and protection enabled
+- GitHub Actions workflow triggers on main branch changes to package files
+- Previous infrastructure: AWS Lambda + API Gateway for TanStack Start
