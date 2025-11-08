@@ -22,6 +22,8 @@
         "s3:DeleteBucketWebsite",
         "s3:GetBucketTagging",
         "s3:PutBucketTagging",
+        "s3:GetBucketNotification",
+        "s3:PutBucketNotification",
         "s3:GetObject",
         "s3:PutObject",
         "s3:DeleteObject",
@@ -29,7 +31,9 @@
       ],
       "Resource": [
         "arn:aws:s3:::sst-*",
-        "arn:aws:s3:::sst-*/*"
+        "arn:aws:s3:::sst-*/*",
+        "arn:aws:s3:::nodm-name-*",
+        "arn:aws:s3:::nodm-name-*/*"
       ]
     },
     {
@@ -59,7 +63,12 @@
         "cloudfront:UpdateFunction",
         "cloudfront:DeleteFunction",
         "cloudfront:PublishFunction",
-        "cloudfront:DescribeFunction"
+        "cloudfront:DescribeFunction",
+        "cloudfront:CreateKeyValueStore",
+        "cloudfront:DeleteKeyValueStore",
+        "cloudfront:DescribeKeyValueStore",
+        "cloudfront:ListKeyValueStores",
+        "cloudfront:UpdateKeyValueStore"
       ],
       "Resource": "*"
     },
@@ -152,7 +161,9 @@
         "ssm:PutParameter",
         "ssm:DeleteParameter",
         "ssm:AddTagsToResource",
-        "ssm:RemoveTagsFromResource"
+        "ssm:RemoveTagsFromResource",
+        "ssm:DescribeParameters",
+        "ssm:ListTagsForResource"
       ],
       "Resource": "*"
     },
@@ -197,6 +208,30 @@
         "cloudformation:DescribeStackEvents",
         "cloudformation:DescribeStackResources",
         "cloudformation:GetTemplate"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ECRAccess",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:CreateRepository",
+        "ecr:DeleteRepository",
+        "ecr:DescribeRepositories",
+        "ecr:GetRepositoryPolicy",
+        "ecr:SetRepositoryPolicy",
+        "ecr:DeleteRepositoryPolicy",
+        "ecr:BatchGetImage",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:CompleteLayerUpload",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:InitiateLayerUpload",
+        "ecr:PutImage",
+        "ecr:UploadLayerPart",
+        "ecr:GetAuthorizationToken",
+        "ecr:TagResource",
+        "ecr:UntagResource",
+        "ecr:ListTagsForResource"
       ],
       "Resource": "*"
     }
