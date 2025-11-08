@@ -1,155 +1,36 @@
-# nodm-name
-
-[![Deploy to AWS](https://github.com/nodm/nodm-name/actions/workflows/deploy.yml/badge.svg?branch=main)](https://github.com/nodm/nodm-name/actions/workflows/deploy.yml)
-
-Personal website monorepo with AWS infrastructure managed by Pulumi.
-## Features
-
-- **TanStack Start application** with React 19, TypeScript, and Tailwind CSS v4
-- **Private S3 hosting** with CloudFront Origin Access Control (OAC)
-- **HTTPS-only** with ACM certificate (TLS 1.2+)
-- **Custom domain**
-- **GitHub Actions CI/CD** with OIDC authentication
-- **Self-managed Pulumi state** in S3 (no Pulumi Cloud required)
-- **Monorepo structure** with separate packages for app and infrastructure
-
-## Prerequisites
-
-- [Pulumi CLI](https://www.pulumi.com/docs/get-started/install/) (>= v3)
-- [Node.js](https://nodejs.org/) (>= 22)
-- AWS credentials configured (via `aws configure` or environment variables)
-- Route53 hosted zone for your domain
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
 
-1. Install dependencies:
-
-   ```bash
-   npm install
-   ```
-
-2. Login to S3 backend:
-
-   ```bash
-   cd packages/iac
-   pulumi login s3://<bucket-name-for-pulumi-state>
-   ```
-
-3. Select stack:
-
-   ```bash
-   pulumi stack select prod
-   ```
-
-4. Preview infrastructure changes:
-
-   ```bash
-   npm run preview
-   ```
-
-5. Deploy to AWS:
-
-   ```bash
-   npm run deploy
-   ```
-
-## Available Scripts
-
-**Root level:**
-- `npm run lint` - Check code with Biome
-- `npm run lint:fix` - Fix linting issues
-- `npm run format` - Format code with Biome
-
-**Application (packages/app):**
-- `npm run dev` - Start development server (port 3000)
-- `npm run build` - Build for production
-- `npm run serve` - Preview production build
-- `npm run test` - Run tests with Vitest
-- `npm run lint` - Lint with Biome
-- `npm run format` - Format with Biome
-
-**Infrastructure (packages/iac):**
-- `npm run preview` - Preview infrastructure changes
-- `npm run deploy` - Deploy infrastructure to AWS
-- `npm run destroy` - Tear down all AWS resources
-- `npm run outputs` - Display deployed URLs
-
-## Project Structure
-
-```
-.
-├── packages/
-│   ├── app/              # TanStack Start application
-│   │   ├── src/
-│   │   │   ├── routes/   # File-based routing
-│   │   │   └── components/ # React components
-│   │   ├── package.json  # App dependencies
-│   │   ├── tsconfig.json # TypeScript config (ESM)
-│   │   └── vite.config.ts # Vite configuration
-│   └── iac/              # Infrastructure as code
-│       ├── index.ts      # Pulumi infrastructure definition
-│       ├── package.json  # IAC dependencies
-│       └── tsconfig.json # TypeScript config (CommonJS)
-├── src/
-│   └── index.html        # Static "under construction" page
-├── .github/
-│   └── workflows/
-│       └── deploy.yml    # CI/CD pipeline
-└── package.json          # Workspace root
-```
-
-## Development
-
-### Running the App Locally
+First, run the development server:
 
 ```bash
-cd packages/app
 npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-Starts development server at http://localhost:3000 with hot reload.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-### Building the App
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-```bash
-cd packages/app
-npm run build
-```
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-Builds optimized production bundle.
+## Learn More
 
-## Deployment
+To learn more about Next.js, take a look at the following resources:
 
-### Infrastructure Deployment
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-**Automatic (Recommended):**
-Push to `main` branch triggers GitHub Actions deployment.
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-**Manual:**
-```bash
-cd packages/iac
-pulumi up
-```
+## Deploy on Vercel
 
-### Updating Static Content
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-1. Edit `src/index.html`
-2. Push to `main` (auto-deploys) or run `pulumi up` manually
-3. CloudFront cache TTL: 1 hour (invalidate for immediate updates)
-
-## Cost Considerations
-
-- **S3**: Minimal (storage + requests)
-- **CloudFront**: Pay-per-use (requests + data transfer)
-- **Route53**: ~$0.50/month per hosted zone + queries
-- **ACM**: Free
-
-Estimated: $1-5/month for low traffic
-
-## Documentation
-
-See [CLAUDE.md](./CLAUDE.md) for detailed architecture, AWS permissions, and deployment setup.
-
-## License
-
-MIT
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
