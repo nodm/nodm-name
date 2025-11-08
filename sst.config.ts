@@ -12,6 +12,7 @@ export default $config({
       home: 'aws',
       providers: {
         aws: {
+          region: (process.env.AWS_REGION || 'eu-north-1') as 'eu-north-1',
           defaultTags: {
             tags: {
               Project: 'nodm-name',
